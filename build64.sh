@@ -22,7 +22,7 @@ echo "Building Rust kernel..."
 cargo build --target aarch64-unknown-none --release
 
 echo "Linking kernel..."
-aarch64-elf-ld -T test-linker.ld boot.o target/aarch64-unknown-none/release/libmvos_arm.a -o kernel64.elf
+aarch64-elf-ld -T linker64.ld boot.o target/aarch64-unknown-none/release/libmvos_arm.a -o kernel64.elf
 
 # echo "Creating binary..."
 # aarch64-elf-objcopy -O binary kernel.elf kernel.bin
