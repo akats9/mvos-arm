@@ -7,21 +7,21 @@ const PCI_FUNC_MAX: u64 = 8;
 
 const PCI_CMD_REG: u64 = 0x04;
 
-pub fn pci_make_addr(bus: &u32, slot: &u32, func: &u32, offset: u32) -> u64 {
-    PCI_ECAM_BASE | ((*bus as u64) << 20) | ((*slot as u64) << 15) | ((*func as u64) << 12) | (offset & 0xFFF) as u64
+pub fn pci_make_addr(bus: u32, slot: u32, func: u32, offset: u32) -> u64 {
+    PCI_ECAM_BASE | ((bus as u64) << 20) | ((slot as u64) << 15) | ((func as u64) << 12) | (offset & 0xFFF) as u64
 }
 
-pub fn inspect_bar(base: &u64) {
+pub fn inspect_bar(base: u64) {
     serial_println!("Inspecting GPU Bars...\n");
 
     for bar_offset in (0x10..=0x28).step_by(4) {
-        let mut bar: u64 = mmio_read(&(base + bar_offset)) as u64;
+        let mut bar: u64 = mmio_read(base + bar_offset) as u64;
         serial_println!("BAR @ offset {:x}: {:x}", bar_offset, bar);
 
         //Check for 64bit BAR
         if (bar & 0x4) != 0 {
             serial_println!("  - 64-bit Prefetchable Memory");
-            let high: u64 = mmio_read(&(base + bar_offset + 4)) as u64;
+            let high: u64 = mmio_read(base + bar_offset + 4) as u64;
             serial_println!("  - Upper 32 bits: {:x}", high);
             bar |= (high as u64) << 32;
         }
@@ -37,14 +37,14 @@ pub fn inspect_bar(base: &u64) {
     }
 }
 
-pub fn find_pci_device(vendor_id: &u32, device_id: &u32, out_mmio_base: *mut u64) -> u64 {
+pub fn find_pci_device(vendor_id: u32, device_id: u32, out_mmio_base: *mut u64) -> u64 {
     for bus in 0..PCI_BUS_MAX as u32 {
         for slot in 0..PCI_SLOT_MAX as u32 {
             for func in 0..PCI_FUNC_MAX as u32 {
-                let device_address = pci_make_addr(&bus, &slot, &func, 0x00);
-                let vendor_device = mmio_read(&device_address);
+                let device_address = pci_make_addr(bus, slot, func, 0x00);
+                let vendor_device = mmio_read(device_address);
 
-                if (vendor_device & 0xFFFF) == *vendor_id as u64 && (vendor_device >> 16) & 0xFFFF == *device_id as u64 {
+                if (vendor_device & 0xFFFF) == vendor_id as u64 && (vendor_device >> 16) & 0xFFFF == device_id as u64 {
                     serial_println!("Found device at bus {:x}, slot {:x}, func {:x}", bus, slot, func);
 
                     unsafe {
@@ -61,17 +61,17 @@ pub fn find_pci_device(vendor_id: &u32, device_id: &u32, out_mmio_base: *mut u64
     0_u64
 }
 
-pub fn dump_pci_config(base: &u64) {
+pub fn dump_pci_config(base: u64) {
     serial_println!("Dumping PCI Configuration Space:");
 
     for offset in (0..0x40).step_by(4) {
-        let val = mmio_read(&(*base + offset));
+        let val = mmio_read(base + offset);
         serial_println!("Offset {:x}: {:x}", offset, val);
     }
 }
 
-pub fn pci_enable_device(base: &u64) {
-    let cmd_before = mmio_read(&(base + 0x04));
+pub fn pci_enable_device(base: u64) {
+    let cmd_before = mmio_read(base + 0x04);
     serial_println!("PCI Command Register before: {:x}", cmd_before);
 
     //Set the Memory Space Enable (MSE) and Bus Master Enable (BME) bits
@@ -79,9 +79,9 @@ pub fn pci_enable_device(base: &u64) {
 
     serial_println!("Setting CMD: {:x}", cmd);
 
-    mmio_write(&(base + 0x4), cmd as u32);
+    mmio_write(base + 0x4, cmd as u32);
 
-    let cmd_after = mmio_read(&(base + 0x04));
+    let cmd_after = mmio_read(base + 0x04);
     serial_println!("PCI Command Register after: {:x}", cmd_after);
 
     if (cmd_after & 0x7) == 0x7 {

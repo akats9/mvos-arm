@@ -18,3 +18,4 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 pub mod uart;
 pub mod pci;
 pub mod mmio;
+pub mod framebuffer;
