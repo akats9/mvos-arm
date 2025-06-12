@@ -12,5 +12,5 @@ panic = "abort"
 panic = "abort"
 
 [lib]
-name = "kernel"
+name = "mvos_arm"
 crate-type = ["staticlib"]
