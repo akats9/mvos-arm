@@ -11,29 +11,46 @@ pub fn pci_make_addr(bus: u32, slot: u32, func: u32, offset: u32) -> u64 {
     PCI_ECAM_BASE | ((bus as u64) << 20) | ((slot as u64) << 15) | ((func as u64) << 12) | (offset & 0xFFF) as u64
 }
 
-pub fn inspect_bar(base: u64) {
+pub fn pci_get_bar(base: u64, index: u8, offset: u8) -> u64 {
+    base + offset as u64 + (index as u64 * 4)
+}
+
+pub fn debug_read_bar(base: u64, index: u8, offset: u8) {
+    serial_print!("Reading BAR @ ");
+    let addr: u64 = pci_get_bar(base, index, offset);
+    serial_print!("{:x}", addr);
+    let val: u64 = mmio_read(addr);
+    serial_println!(" ({:x}) content: {:x}", index, val);
+}
+
+pub fn inspect_bar(base: u64, offset: u8) {
     serial_println!("Inspecting GPU Bars...\n");
 
-    for bar_offset in (0x10..=0x28).step_by(4) {
-        let mut bar: u64 = mmio_read(base + bar_offset) as u64;
-        serial_println!("BAR @ offset {:x}: {:x}", bar_offset, bar);
+    // for bar_offset in (0x10..=0x28).step_by(4) {
+    //     let mut bar: u64 = mmio_read(base + bar_offset) as u64;
+    //     serial_println!("BAR @ offset {:x}: {:x}", bar_offset, bar);
 
-        //Check for 64bit BAR
-        if (bar & 0x4) != 0 {
-            serial_println!("  - 64-bit Prefetchable Memory");
-            let high: u64 = mmio_read(base + bar_offset + 4) as u64;
-            serial_println!("  - Upper 32 bits: {:x}", high);
-            bar |= (high as u64) << 32;
-        }
+    //     //Check for 64bit BAR
+    //     if (bar & 0x4) != 0 {
+    //         serial_println!("  - 64-bit Prefetchable Memory");
+    //         let high: u64 = mmio_read(base + bar_offset + 4) as u64;
+    //         serial_println!("  - Upper 32 bits: {:x}", high);
+    //         bar |= (high as u64) << 32;
+    //     }
 
-        //Check if MMIO or IO
-        if bar & 1 != 0 {
-            serial_println!("  - I/O Space");
-        } else {
-            let mmio_base: u64 = bar & !0xF;
-            serial_println!("  - MMIO Space");
-            serial_println!("  - MMIO Base: {:x}", mmio_base);
-        }
+    //     //Check if MMIO or IO
+    //     if bar & 1 != 0 {
+    //         serial_println!("  - I/O Space");
+    //     } else {
+    //         let mmio_base: u64 = bar & !0xF;
+    //         serial_println!("  - MMIO Space");
+    //         serial_println!("  - MMIO Base: {:x}", mmio_base);
+    //     }
+    // }
+
+    serial_println!("Inspecting GPU BARs...");
+    for bar_offset in (0x0..=0x18).step_by(4) {
+        debug_read_bar(base, bar_offset, offset);
     }
 }
 

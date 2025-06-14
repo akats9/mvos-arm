@@ -33,9 +33,13 @@ if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]
 then
     qemu-system-aarch64 \
     -M virt \
-    -cpu cortex-a57 \
-    -nographic \
-    -kernel kernel64.elf
+    -cpu cortex-a72 \
+    -m 512M \
+    -kernel kernel64.elf \
+    -device virtio-gpu-pci \
+    -serial mon:stdio \
+    #-display sdl
+    #-monitor unix:/tmp/qemu-monitor-socket,server,nowait -s -S
 
 else
     echo Exiting.

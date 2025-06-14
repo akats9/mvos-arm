@@ -36,6 +36,7 @@ impl Write for UartWriter {
 
 /// Print formatted string to UART without newline
 #[macro_export]
+#[macro_use]
 macro_rules! serial_print {
     ($($arg:tt)*) => {
         {
@@ -48,6 +49,7 @@ macro_rules! serial_print {
 
 /// Print formatted string to UART with newline
 #[macro_export]
+#[macro_use]
 macro_rules! serial_println {
     () => {
         $crate::serial_print!("\n")
