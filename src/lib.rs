@@ -5,9 +5,9 @@ use crate::{framebuffer::gpu_init, uart::UartWriter};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() -> ! {
-    serial_println!("Hello World!");
-    serial_println!("MVOS aarch64 version 0.0.1");
-    serial_println!("Initializing GPU...");
+    serial_println!("[INFO] Hello World!");
+    serial_println!("[INFO] MVOS aarch64 version 0.0.1");
+    serial_println!("[DRIVERS] Initializing GPU...");
     gpu_init();
     //gpu_clear(0x00FF00FF);
     loop {}

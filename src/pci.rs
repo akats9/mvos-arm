@@ -16,7 +16,7 @@ pub fn pci_get_bar(base: u64, index: u8, offset: u8) -> u64 {
 }
 
 pub fn debug_read_bar(base: u64, index: u8, offset: u8) {
-    serial_print!("Reading BAR @ ");
+    serial_print!("[PCI] Reading BAR @ ");
     let addr: u64 = pci_get_bar(base, index, offset);
     serial_print!("{:x}", addr);
     let val: u64 = mmio_read(addr);
@@ -48,7 +48,7 @@ pub fn inspect_bar(base: u64, offset: u8) {
     //     }
     // }
 
-    serial_println!("Inspecting GPU BARs...");
+    serial_println!("[PCI] Inspecting GPU BARs...");
     for bar_offset in (0x0..=0x18).step_by(4) {
         debug_read_bar(base, bar_offset, offset);
     }
@@ -89,21 +89,21 @@ pub fn dump_pci_config(base: u64) {
 
 pub fn pci_enable_device(base: u64) {
     let cmd_before = mmio_read(base + 0x04);
-    serial_println!("PCI Command Register before: {:x}", cmd_before);
+    serial_println!("[PCI] PCI Command Register before: {:x}", cmd_before);
 
     //Set the Memory Space Enable (MSE) and Bus Master Enable (BME) bits
     let cmd = cmd_before | 0x7;
 
-    serial_println!("Setting CMD: {:x}", cmd);
+    serial_println!("[PCI] Setting CMD: {:x}", cmd);
 
     mmio_write(base + 0x4, cmd as u32);
 
     let cmd_after = mmio_read(base + 0x04);
-    serial_println!("PCI Command Register after: {:x}", cmd_after);
+    serial_println!("[PCI] PCI Command Register after: {:x}", cmd_after);
 
     if (cmd_after & 0x7) == 0x7 {
-        serial_println!("PCI device succesfully enabled.");
+        serial_println!("[PCI] PCI device succesfully enabled.");
     } else {
-        serial_println!("Failed to enable PCI device (MSE/BME not set).");
+        serial_println!("[PCI] \033[1;31m[error]: Failed to enable PCI device (MSE/BME not set).\033[0m");
     }
 }

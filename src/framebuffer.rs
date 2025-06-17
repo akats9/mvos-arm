@@ -11,7 +11,7 @@ pub static mut chosen_gpu: SupportedGPU = SupportedGPU::NONE;
 
 pub fn gpu_init() {
     if vgp_init() { unsafe { chosen_gpu = SupportedGPU::VIRTIO_GPU_PCI; } }
-    unsafe { serial_println!("Selected and initialized GPU {:#?}", chosen_gpu); }
+    unsafe { serial_println!("[GPU] Selected and initialized GPU {:#?}", chosen_gpu); }
 }
 
 pub fn gpu_flush() {
