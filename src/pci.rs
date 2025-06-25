@@ -24,7 +24,6 @@ pub fn debug_read_bar(base: u64, index: u8, offset: u8) {
 }
 
 pub fn inspect_bar(base: u64, offset: u8) {
-    serial_println!("Inspecting GPU Bars...\n");
 
     // for bar_offset in (0x10..=0x28).step_by(4) {
     //     let mut bar: u64 = mmio_read(base + bar_offset) as u64;
@@ -104,6 +103,6 @@ pub fn pci_enable_device(base: u64) {
     if (cmd_after & 0x7) == 0x7 {
         serial_println!("[PCI] PCI device succesfully enabled.");
     } else {
-        serial_println!("[PCI] \033[1;31m[error]: Failed to enable PCI device (MSE/BME not set).\033[0m");
+        serial_println!("[PCI] \x1B[1;31m[error]: Failed to enable PCI device (MSE/BME not set).\x1B[0m");
     }
 }

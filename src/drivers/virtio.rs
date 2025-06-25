@@ -1,5 +1,6 @@
 use crate::{mmio::{alloc, mmio_read32, mmio_read64, mmio_write32}, pci::*, serial_println};
-
+use core::ptr;
+use core::arch::asm;
 use super::*;
 
 const VIO_STS_RST: u8 = 0x0;
@@ -43,13 +44,17 @@ static mut VQ_CMD: u64 = 0;
 static mut VQ_RESP: u64 = 0;
 static mut VQ_DISP_INFO: u64 = 0;
 
-static display_height: u64 = 600;
-static display_width: u64 = 800;
+static mut display_height: u64 = 600;
+static mut display_width: u64 = 800;
 static fb_mem: u64 = 0x0;
-static scout_id: u32 = 0;
-static scout_found: bool = false;
+static mut scout_id: u32 = 0;
+static mut scout_found: bool = false;
 
-const FB_SIZE: u64 = display_width * display_height * (FB_BPP/8);
+static mut FB_SIZE: u64 = 800 * 600 * (FB_BPP/8);
+
+pub unsafe fn update_fb_size() {
+    FB_SIZE = display_width * display_height * (FB_BPP/8);
+}
 
 #[repr(C)]
 pub struct VioPciCap {
@@ -64,7 +69,7 @@ pub struct VioPciCap {
     len: u32,
 }
 
-#[repr(C)]
+#[repr(C, packed)]
 pub struct VioPciCmnCfg {
     dev_ftr_sel: u32,
     dev_ftr: u32,
@@ -120,7 +125,7 @@ pub struct VioGpuRespDspInfo {
     pmodes: [VioGpuDspOne; VIO_MAX_SCOUTS as usize],
 }
 
-#[repr(C)]
+#[repr(C, packed)]
 pub struct VqDesc {
     addr: u64,
     len: u32,
@@ -128,20 +133,20 @@ pub struct VqDesc {
     next: u16,
 }
 
-#[repr(C)]
+#[repr(C packed)]
 pub struct VqAvail {
     flags: u16,
     idx: u16,
     ring: [u16; 128],
 }
 
-#[repr(C)]
+#[repr(C, packed)]
 pub struct VqUsedElem {
     id: u32,
     len: u32,
 }
 
-#[repr(C)]
+#[repr(C, packed)]
 pub struct VqUsed {
     flags: u16,
     idx: u16,
@@ -273,4 +278,131 @@ pub unsafe fn vgp_get_capabilities(address: u64) -> *mut VioPciCap {
     }
 
     0x0 as *mut VioPciCap
+}
+
+pub unsafe fn vgp_send_command(cmd_addr: u64, cmd_size: u32, resp_addr: u64, resp_size: u32, notify_base: u64, notify_multiplier: u32, flags: u8) {
+    let mut desc: *mut VqDesc = (*common_cfg).q_desc as *mut VqDesc;
+    let mut avail: *mut VqAvail = (*common_cfg).q_drv as *mut VqAvail;
+    let mut used: *mut VqUsed = (*common_cfg).q_dev as *mut VqUsed;
+
+    ptr::write_volatile(&mut (*desc.offset(0)).addr, cmd_addr);
+    ptr::write_volatile(&mut (*desc.offset(0)).len, cmd_size);
+    ptr::write_volatile(&mut (*desc.offset(0)).flags, flags as u16);
+    ptr::write_volatile(&mut (*desc.offset(0)).next, 1);
+
+    ptr::write_volatile(&mut (*desc.offset(1)).addr, resp_addr);
+    ptr::write_volatile(&mut (*desc.offset(1)).len, resp_size);
+    ptr::write_volatile(&mut (*desc.offset(1)).flags, VQ_DESC_F_WRT as u16);
+    ptr::write_volatile(&mut (*desc.offset(1)).next, 0);
+
+    (*avail).ring[((*avail).idx % 128) as usize] = 0;
+    (*avail).idx += 1;
+
+    ((notify_base + notify_multiplier as u64 * 0) as *mut u16).write_volatile(0);
+
+    let mut last_used_idx = (*used).idx;
+    while last_used_idx == (*used).idx {}
+    last_used_idx = (*used).idx;
+}
+
+pub unsafe fn vgp_get_display_info() -> bool {
+    let mut cmd: *mut VioGpuCtrlHdr = VQ_CMD as *mut VioGpuCtrlHdr;
+
+    (*cmd).tipe = VIO_GPU_CMD_GET_DISP_INFO as u32;
+    (*cmd).flags = 0;
+    (*cmd).fence_id = 0;
+    (*cmd).ctx_id = 0;
+    (*cmd).ring_idx = 0;
+    (*cmd).padding[0] = 0;
+    (*cmd).padding[1] = 0;
+    (*cmd).padding[2] = 0;
+
+    serial_println!("[VirtIO] Command prepared.");
+
+    vgp_send_command(cmd as u64, core::mem::size_of::<VioGpuCtrlHdr>() as u32, VQ_DISP_INFO, core::mem::size_of::<VioGpuRespDspInfo>() as u32, ntf_cfg as u64, ntf_off_mult, 0);
+
+    let mut resp: *mut VioGpuRespDspInfo = VQ_DISP_INFO as *mut VioGpuRespDspInfo;
+
+    for i in 0..VIO_MAX_SCOUTS {
+        serial_println!("[VirtIO] Scanout {:x}: enabled = {:x} size = {:x} x {:x}", i, (*resp).pmodes[i as usize].enabled, (*resp).pmodes[i as usize].width, (*resp).pmodes[i as usize].height);
+
+        if (*resp).pmodes[i as usize].enabled != 0 {
+            serial_println!("[VirtIO] \033[032;1mFOUND A VALID DISPLAY: {:x} x {:x}\033[0m", (*resp).pmodes[i as usize].width, (*resp).pmodes[i as usize].height);
+
+            display_width = (*resp).pmodes[i as usize].width as u64;
+            display_height = (*resp).pmodes[i as usize].height as u64;
+            update_fb_size();
+            scout_id = i as u32;
+            scout_found = true;
+            return true;
+        }
+    }
+
+    serial_println!("[VirtIO] \033[1;33mWarning: Display not enabled yet. Using default but not allowing scanout.\033[0m");
+    (*resp).pmodes[0].width = 1024;
+    (*resp).pmodes[0].height = 768;
+    scout_found = false;
+
+    false
+}
+
+#[repr(C)]
+pub struct GpuResourceCreate2dCmd {
+    hdr: VioGpuCtrlHdr,
+    resource_id: u32,
+    format: u32,
+    width: u32,
+    height: u32,
+}
+
+pub unsafe fn vgp_create_2d_resource() {
+    let mut cmd: *mut GpuResourceCreate2dCmd = VQ_CMD as *mut GpuResourceCreate2dCmd;
+
+    (*cmd).hdr.tipe = VIO_GPU_CMD_RSC_CRT_2D as u32;
+    (*cmd).hdr.flags = 0;
+    (*cmd).hdr.fence_id = 0;
+    (*cmd).hdr.ctx_id = 0;
+    (*cmd).hdr.ring_idx = 0;
+    (*cmd).hdr.padding[0] = 0;
+    (*cmd).hdr.padding[1] = 0;
+    (*cmd).hdr.padding[2] = 0;
+    (*cmd).resource_id = GPU_RSC_ID as u32; 
+    (*cmd).format = 1; //VIRTIO_GPU_FORMAT_B8G8R8A8_UNORM
+    (*cmd).width = display_width as u32;
+    (*cmd).height = display_height as u32;
+
+    vgp_send_command(cmd as u64, core::mem::size_of_val(&*cmd) as u32, VQ_RESP, core::mem::size_of::<VioGpuCtrlHdr>() as u32, ntf_cfg as u64, ntf_off_mult as u32, VQ_DESC_F_NEXT);
+
+    asm!("", options(nostack, preserves_flags));
+
+    let mut resp: *mut VioGpuCtrlHdr = VQ_RESP as *mut VioGpuCtrlHdr;
+
+    serial_println!("[VirtIO] Response type: {:x} flags: {:x}", (*resp).tipe, (*resp).flags);
+
+    if (*resp).tipe == 0x1100 {
+        serial_println!("[VirtIO] \033[0;32mRESOURCE_CREATE_2D OK\033[0m");
+    } else {
+        serial_println!("[VirtIO] \033[1;31mRESOURCE_CREATE_2D ERROR: {:x}\033[0m", (*resp).tipe);
+    }
+}
+
+#[repr(C, packed)]
+pub struct GpuAttachBackingCommand {
+    hdr: VioGpuCtrlHdr,
+    resource_id: u32,
+    nr_entries: u32,
+}
+
+#[repr(C)]
+pub struct GpuAttachBackingEntry {
+    addr: u64,
+    length: u32,
+    padding: u32,
+}
+
+pub unsafe fn vgp_attach_backing() {
+    let ptr: *mut u8 = VQ_CMD as *mut u8;
+
+    let cmd: *mut GpuAttachBackingCommand = ptr as *mut GpuAttachBackingCommand;
+    let entry: *mut GpuAttachBackingEntry = (ptr + (core::mem::size_of::<GpuAttachBackingCommand>() as *mut u8)) as *mut GpuAttachBackingEntry;
 }

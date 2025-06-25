@@ -57,9 +57,9 @@ unsafe extern "C" {
 }
 
 // Thread-safe global allocator state
-static NEXT_FREE_MEMORY: AtomicU64 = AtomicU64::new(0);
+static NEXT_FREE_MEMORY: AtomicU64 = AtomicU64::new(0x0902_0000_0000);
 
-// Initialize the allocator (call this once at startup)
+/// Initialize the allocator (call this once at startup)
 pub fn init_allocator() {
     unsafe {
         let stack_addr = core::ptr::addr_of!(heap_bottom) as u64;
