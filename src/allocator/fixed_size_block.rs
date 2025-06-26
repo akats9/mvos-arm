@@ -54,7 +54,7 @@ unsafe impl GlobalAlloc for Locked<FixedSizeBlockAllocator> {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let mut allocator = self.lock();
 
-        serial_println!("[ALLOCATOR] Allocating Layout: {:#?}", layout);
+        serial_println!("[ ALLOCATOR ] Allocating Layout: {:?}", layout);
         
         match list_index(&layout) {
             Some(index) => {

@@ -38,7 +38,6 @@ then
     -kernel kernel64.elf \
     -device ramfb \
     -serial mon:stdio \
-    #-display sdl
     #-monitor unix:/tmp/qemu-monitor-socket,server,nowait -s -S
 
 else

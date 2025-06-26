@@ -1,11 +1,11 @@
 #![no_std]
 #![no_main]
 
-use core::arch::asm;
+use core::{arch::asm, panic::PanicInfo};
 
 extern crate alloc;
 
-use crate::{drivers::ramfb::setup_ramfb, framebuffer::gpu_init, uart::UartWriter};
+use crate::{drivers::ramfb::setup_ramfb, framebuffer::{allocate_fb, fb_addr, gpu_init}, uart::UartWriter};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main(_x0: u64, dtb_ptr: *const u8) -> ! {
@@ -20,7 +20,9 @@ pub extern "C" fn kernel_main(_x0: u64, dtb_ptr: *const u8) -> ! {
     //     }
     // };
 
-    setup_ramfb(0x0902_0000 as *mut u64, 800, 600);
+    allocate_fb();
+
+    unsafe { setup_ramfb(fb_addr as *mut u64, 800, 600); }
 
     serial_println!("[  DRIVERS  ] GPU Initialized.");
 
@@ -33,7 +35,12 @@ pub extern "C" fn kernel_main(_x0: u64, dtb_ptr: *const u8) -> ! {
 
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
-    serial_print!("\x1B[1;31m[   PANIC   ] SYSTEM PANICKED\x1B[0m");
+    //serial_print!("\x1B[1;31m[   PANIC   ] SYSTEM PANICKED\x1B[0m");
+    unsafe {
+        asm!("mov x0, #0x09000000");
+        asm!("mov w1, #0x41");
+        asm!("strb w1, [x0]"); 
+    }
     loop{}
 }
 
