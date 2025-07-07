@@ -5,7 +5,7 @@ use core::{
         mem,
 };
 
-use crate::allocator::fixed_size_block::FixedSizeBlockAllocator;
+use crate::memory::allocator::fixed_size_block::FixedSizeBlockAllocator;
 
 #[global_allocator]
 static ALLOCATOR: Locked<FixedSizeBlockAllocator> = Locked::new(FixedSizeBlockAllocator::new());

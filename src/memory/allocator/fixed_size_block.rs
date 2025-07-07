@@ -61,18 +61,22 @@ unsafe impl GlobalAlloc for Locked<FixedSizeBlockAllocator> {
                 match allocator.list_heads[index].take() {
                     Some(node) => {
                         allocator.list_heads[index] = node.next.take();
-                        node as *mut ListNode as *mut u8
+                        let res =node as *mut ListNode as *mut u8;
+                        serial_println!("[ ALLOCATOR ] Allocating address 0x{:x}", res as u8);
+                        res
                     }
                     None => {
                         let block_size = BLOCK_SIZES[index];
                         let block_align = block_size;
                         let layout = Layout::from_size_align(block_size, block_align)
                             .unwrap();
-                        allocator.fallback_alloc(layout)
+                        let res = allocator.fallback_alloc(layout);
+                        serial_println!("[ ALLOCATOR ] Allocating address 0x{:x}", res as u8);
+                        res
                     }
                 }
             }
-            None => allocator.fallback_alloc(layout),
+            None => { let res = allocator.fallback_alloc(layout); serial_println!("[ ALLOCATOR ] Allocating address 0x{:x}", res as u8); res },
         }
     }
 

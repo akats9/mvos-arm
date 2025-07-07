@@ -1,4 +1,4 @@
-use crate::{mmio::{self, mmio_read, mmio_write}, serial_print, serial_println};
+use crate::{memory::mmio::{self, mmio_read, mmio_write}, serial_print, serial_println};
 
 const PCI_ECAM_BASE: u64 = 0x4010000000;
 const PCI_BUS_MAX: u64 = 256;

@@ -34,11 +34,11 @@ then
     qemu-system-aarch64 \
     -M virt \
     -cpu cortex-a72 \
-    -m 512M \
+    -m 1G \
     -kernel kernel64.elf \
     -device ramfb \
-    -serial mon:stdio \
-    #-monitor unix:/tmp/qemu-monitor-socket,server,nowait -s -S
+    -serial stdio \
+    -monitor unix:/tmp/qemu-monitor-socket,server,nowait -s -S
 
 else
     echo Exiting.

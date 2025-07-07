@@ -1,5 +1,5 @@
 use core::{
-    ffi::CStr, mem, num, ptr::addr_of
+    ffi::{CStr, FromBytesUntilNulError}, mem, num, ptr::addr_of, slice::memchr
 };
 
 use crate::serial_println;
@@ -114,23 +114,13 @@ pub fn setup_ramfb(fb_addr: *mut u64, width: u32, height: u32) {
 
         serial_println!("[   RAMFB   ] \x1b[0;33mDebug: Transfer done.\x1b[0m");
 
-        serial_println!("[   RAMFB   ] \x1b[0;33mDebug: attempting to create a C String entry variable from &ramfb.name: {:?}\x1b[0m", &ramfb.name);
         
-        let entry = match CStr::from_bytes_until_nul(&ramfb.name) {
-            Ok(cstr) => cstr,
-            Err(e) => {
-                serial_println!("[   RAMFB   ] \x1b[1;31mERROR: CStr error: {:?}", e);
-                CStr::from_bytes_until_nul(&[0;12]).unwrap()
-            }
-        };
-
-        serial_println!("[   RAMFB   ] \x1b[0;33mDebug: Declared entry variable.\x1b[0m");
-
-        let entry = entry.to_str().unwrap();
-        if entry == "etc/ramfb" {
-            serial_println!("[   RAMFB   ] \x1b[0;33mDebug: Found entry \"etc/ramfb\", breaking from loop.\x1b[0m");
+        if compare_etc_ramfb(&ramfb.name) {
+            serial_println!("[   RAMFB   ] \x1b[0;32mDebug: Found entry \"etc/ramfb\", breaking from loop.\x1b[0m");
             break;
         }
+
+        //serial_println!("[   RAMFB   ] \x1b[0;33mDebug: Entry {:?} did not match.\x1b[0m", &ramfb.name.to_ascii_lowercase());
     }
 
     serial_println!("[   RAMFB   ] \x1B[0;33mDebug: dma transfer loop done.\x1B[0m");
@@ -161,4 +151,16 @@ pub fn setup_ramfb(fb_addr: *mut u64, width: u32, height: u32) {
     }
 
     //serial_println!("[   RAMFB   ] \x1B[0;33mDebug: final dma transfer done.\x1B[0m");
+}
+
+fn compare_etc_ramfb(bytes: &[u8]) -> bool {
+    let ramfb_key = b"etc/ramfb";
+    let null = match memchr::memchr(0, bytes) { Some(n) => n, None => {serial_println!("[   RAMFB   ] \x1b[1;33mWARNING: compare_etc_ramfb(): input buffer {:?} is not null terminated.", bytes); 0}};
+    let until_null_buffer = &bytes[..null];
+
+    for b in until_null_buffer.iter().zip(ramfb_key) {
+        if b.0 != b.1 { return false; }
+    }
+
+    true
 }
