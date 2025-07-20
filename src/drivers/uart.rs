@@ -1,7 +1,9 @@
 use core::fmt::Write;
 
+use crate::drivers::SOC_BASE;
+
 // UART base address for QEMU virt machine
-const UART_BASE: *mut u8 = 0x09000000 as *mut u8;
+const UART_BASE: *mut u8 = (SOC_BASE + 0x201000) as *mut u8;
 
 // UART register offsets
 const UART_DR: isize = 0x00;    // Data Register
@@ -36,7 +38,6 @@ impl Write for UartWriter {
 
 /// Print formatted string to UART without newline
 #[macro_export]
-#[macro_use]
 macro_rules! serial_print {
     ($($arg:tt)*) => {
         {
@@ -49,7 +50,6 @@ macro_rules! serial_print {
 
 /// Print formatted string to UART with newline
 #[macro_export]
-#[macro_use]
 macro_rules! serial_println {
     () => {
         $crate::serial_print!("\n")

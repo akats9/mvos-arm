@@ -1,3 +1,3 @@
-//pub mod virtio;
-pub mod ramfb;
-pub mod dtb_parser;
+pub const SOC_BASE: u64 = 0xfe000000;
+
+pub mod uart;

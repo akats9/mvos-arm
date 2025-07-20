@@ -32,12 +32,12 @@ read -r -p "Run kernel? [y/N] " response
 if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]
 then
     qemu-system-aarch64 \
-    -M virt \
-    -cpu cortex-a72 \
-    -m 1G \
+    -M raspi4b \
+    -m 2G \
+    -smp 4 \
     -kernel kernel64.elf \
-    -device ramfb \
     -serial stdio \
+    -display none \
     -monitor unix:/tmp/qemu-monitor-socket,server,nowait -s -S
 
 else
