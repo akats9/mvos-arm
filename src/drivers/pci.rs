@@ -1,4 +1,6 @@
-use crate::{memory::mmio::{self, mmio_read, mmio_write}, serial_print, serial_println};
+use core::arch::asm;
+
+use crate::{memory::mmio::mmio_read, serial_print, serial_println};
 
 const PCI_ECAM_BASE: u64 = 0x4010000000;
 const PCI_BUS_MAX: u64 = 256;
@@ -11,7 +13,8 @@ pub fn pci_make_addr(bus: u32, slot: u32, func: u32, offset: u32) -> u64 {
     PCI_ECAM_BASE | ((bus as u64) << 20) | ((slot as u64) << 15) | ((func as u64) << 12) | (offset & 0xFFF) as u64
 }
 
-pub fn pci_get_bar(base: u64, index: u8, offset: u8) -> u64 {
+#[unsafe(no_mangle)]
+pub extern "C" fn pci_get_bar(base: u64, offset: u8, index: u8) -> u64 {
     base + offset as u64 + (index as u64 * 4)
 }
 
@@ -53,7 +56,7 @@ pub fn inspect_bar(base: u64, offset: u8) {
     }
 }
 
-pub fn find_pci_device(vendor_id: u32, device_id: u32, out_mmio_base: *mut u64) -> u64 {
+pub fn find_pci_device(vendor_id: u32, device_id: u32) -> u64 {
     for bus in 0..PCI_BUS_MAX as u32 {
         for slot in 0..PCI_SLOT_MAX as u32 {
             for func in 0..PCI_FUNC_MAX as u32 {
@@ -61,11 +64,7 @@ pub fn find_pci_device(vendor_id: u32, device_id: u32, out_mmio_base: *mut u64) 
                 let vendor_device = mmio_read(device_address);
 
                 if (vendor_device & 0xFFFF) == vendor_id as u64 && (vendor_device >> 16) & 0xFFFF == device_id as u64 {
-                    serial_println!("Found device at bus {:x}, slot {:x}, func {:x}", bus, slot, func);
-
-                    unsafe {
-                        out_mmio_base.write_volatile(device_address);
-                    }
+                    serial_println!("[    PCI    ] Found device at bus {:x}, slot {:x}, func {:x}", bus, slot, func);
 
                     return device_address;
                 }
@@ -87,22 +86,27 @@ pub fn dump_pci_config(base: u64) {
 }
 
 pub fn pci_enable_device(base: u64) {
-    let cmd_before = mmio_read(base + 0x04);
-    serial_println!("[PCI] PCI Command Register before: {:x}", cmd_before);
+    let cmd_before: u64 = 0x00100000;
+
+    serial_println!("[    PCI    ] PCI Command Register before: {:x}", cmd_before);
 
     //Set the Memory Space Enable (MSE) and Bus Master Enable (BME) bits
     let cmd = cmd_before | 0x7;
 
-    serial_println!("[PCI] Setting CMD: {:x}", cmd);
+    serial_println!("[    PCI    ] Setting CMD: {:x}", cmd);
+    serial_println!("[   TERRY   ] NIGGER");
 
-    mmio_write(base + 0x4, cmd as u32);
+    //mmio_write(base + 0x4, cmd as u32);
+    unsafe {
+        asm!("str {}, [{}, #0x04]", in(reg) cmd, in(reg) base);
+    }
 
     let cmd_after = mmio_read(base + 0x04);
-    serial_println!("[PCI] PCI Command Register after: {:x}", cmd_after);
+    serial_println!("[    PCI    ] PCI Command Register after: {:x}", cmd_after);
 
     if (cmd_after & 0x7) == 0x7 {
-        serial_println!("[PCI] PCI device succesfully enabled.");
+        serial_println!("[    PCI    ] \x1b[0;32mPCI device succesfully enabled.\x1b[0m");
     } else {
-        serial_println!("[PCI] \x1B[1;31m[error]: Failed to enable PCI device (MSE/BME not set).\x1B[0m");
+        serial_println!("[    PCI    ] \x1B[0;31m[Error]: Failed to enable PCI device (MSE/BME not set).\x1B[0m");
     }
 }

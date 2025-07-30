@@ -10,6 +10,14 @@ SECTIONS
 	. = . + 0x2800000; /* 40MiB of stack memory */
 	stack_top = .;
 
+	.bss : {
+        sbss = .;
+        *(COMMON)
+        *(.bss)
+        ebss = .;
+	endkernel = .;
+    }
+
 	. = 0x41000000;
 	heap_bottom = .;
 }

@@ -3,3 +3,6 @@
 debug.dts
 debug.dtb
 .DS_Store
+monitor.log
+/build
+.vscode
