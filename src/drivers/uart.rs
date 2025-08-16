@@ -1,4 +1,4 @@
-use core::fmt::Write;
+use core::{ffi::{c_char, CStr}, fmt::Write};
 
 // UART base address for QEMU virt machine
 const UART_BASE: *mut u8 = 0x09000000 as *mut u8;
@@ -67,3 +67,15 @@ macro_rules! serial_println {
 // serial_print!("Hello, ");
 // serial_println!("world! Counter: {}", 42);
 // serial_println!(); // Just a newline
+
+/// FFI binding for C
+#[unsafe(no_mangle)]
+pub extern "C" fn c_serial_println(message: *const c_char) {
+    unsafe {
+        let c_str = CStr::from_ptr(message);
+        match c_str.to_str() {
+            Ok(str_slice) => serial_println!("{}", str_slice),
+            Err(_) => serial_println!("[  SERIAL   ] \x1b[0;31mError: Invalid UTF-8 string passed from C.\x1b[0m"),
+        }
+    }
+}

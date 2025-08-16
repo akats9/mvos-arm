@@ -4,17 +4,25 @@
 #![feature(asm_const)]
 #![feature(asm_sym)]
 
-use core::arch::asm;
+use core::{arch::asm, ffi::{c_char, CStr}};
 
 //extern crate alloc;
 
 use drivers::uart::UartWriter;
 
-use crate::{drivers::pci::pci_enable_device, exceptions::install_exception_handlers};
+use crate::exceptions::set_exception_vectors;
 
 // C functions
 unsafe extern "C" {
     fn pci_enable_device_c(base: u64) -> bool;
+    fn paging_boot();
+}
+
+// Assembly functions 
+unsafe extern "C" {
+    fn set_tcr();
+    fn set_mair();
+    fn set_paging();
 }
 
 #[unsafe(no_mangle)]
@@ -22,8 +30,14 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
     serial_println!("\x1B[1;32m[   INFO    ] Hello World!\x1B[0m");
     serial_println!("\x1B[1;32m[   INFO    ] MVOS aarch64 version 0.0.2\x1B[0m");
 
+    // unsafe {
+    //     set_tcr();
+    //     set_mair();
+    //     set_paging();
+    // }
+
     serial_println!("[  SYSTEM   ] Installing exception handlers... ");
-    unsafe { install_exception_handlers() };
+    unsafe {set_exception_vectors();}
 
     let gpu_base = drivers::pci::find_pci_device(0x1af4, 0x1050);
 
@@ -49,7 +63,7 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn c_panic() { panic!("Panic caused in C source."); }
+pub unsafe extern "C" fn c_panic(msg: *const c_char) { panic!("Panic caused in C source: {}.", CStr::from_ptr(msg).to_str().unwrap()); }
 
 // pub mod framebuffer;
 pub mod drivers;

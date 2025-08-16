@@ -27,7 +27,7 @@ echo "Building C parts..."
 make 
 
 echo "Linking kernel..."
-aarch64-elf-ld -T linker64.ld boot.o --whole-archive build/libckernel.a --no-whole-archive target/aarch64-unknown-none/release/libmvos_arm.a -o kernel64.elf
+aarch64-elf-ld -T linker64.ld boot.o --whole-archive build/libckernel.a --whole-archive target/aarch64-unknown-none/release/libmvos_arm.a -o kernel64.elf
 
 # echo "Creating binary..."
 # aarch64-elf-objcopy -O binary kernel.elf kernel.bin
@@ -43,7 +43,7 @@ then
     -kernel kernel64.elf \
     -device virtio-gpu-pci \
     -serial stdio \
-    -monitor unix:/tmp/qemu-monitor-socket,server,nowait #-s -S
+    -monitor unix:/tmp/qemu-monitor-socket,server,nowait -s -S
 
 else
     echo Exiting.

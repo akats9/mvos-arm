@@ -1,45 +1,35 @@
+// https://grasslab.github.io/NYCU_Operating_System_Capstone/labs/lab8.html
+
 #include "../include/types.h"
 #include "../include/mvos_bindings.h"
 #include "paging.h"
 
-uint32_t page_directory[1024] __attribute__((aligned(4096)));
+// TCR_EL1
 
-/**
- * Call to init and blank the page directory.
- */
-void blank_page_dir() {
-    for (int i = 0; i < 1024; i++) {
-        // This sets the following flags to the pages:
-        //   Supervisor: Only kernel-mode can access them
-        //   Write Enabled: It can be both read from and written to
-        //   Not Present: The page table is not present
-        page_directory[i] = 0x00000002;
-    }
-}
+#define TCR_CONFIG_REGION_48bit (((64-48) << 0) | ((64 - 48) << 16))
+#define TCR_CONFIG_4KB ((0b00 << 14) | (0b10 << 30))
+#define TCR_CONFIG_DEFAULT (TCR_CONFIG_REGION_48bit | TCR_CONFIG_4KB)
 
-uint32_t first_page_table[1024] __attribute__((aligned(4096)));
+// MAIR_EL1
 
+#define MAIR_DEVICE_nGnRnE 0b00000000
+#define MAIR_NORMAL_NOCACHE 0b01000100
+#define MAIR_IDX_DEVICE_nGnRnE 0
+#define MAIR_IDX_NORMAL_NOCACHE 1
 
-void map_first_table() {
-    // Holds the physical address where we want to start mapping these pages to.
-    // In this case, we want to map these pages to the very beginning of memory.
-    unsigned int i;
+// Identity Paging
 
-    // we will fill all 1024 entries in the table, mapping 4MiB
-    for (i = 0; i < 1024; i++) {
-        // As the address is page aligned, it will always leave 12 bits zeroed.
-        // Those bits are used by the attributes
-        first_page_table[i] = (i * 0x1000) | 3;
-        // Attributes: supervisor level, r/w, present.
-    }
-}
+#define PD_TABLE 0b11
+#define PD_BLOCK 0b01
+#define PD_ACCESS (1 << 10)
+#define BOOT_PGD_ATTR PD_TABLE
+#define BOOT_PUD_ATTR (PD_ACCESS | (MAIR_IDX_DEVICE_nGnRnE << 2) | PD_BLOCK)
 
-void put_table_in_dir() {
-    page_directory[0] = ((unsigned int)first_page_table) | 3;
-}
-
-void init_paging() {
-    blank_page_dir();
-    map_first_table();
-    put_table_in_dir();
-}
+// void paging_boot() {
+//     // Set up TCR_EL1.
+//     load_config_tcr_el1(TCR_CONFIG_DEFAULT);
+//     // Set up MAIR_EL1
+//     size_t config = ((MAIR_DEVICE_nGnRnE << (MAIR_IDX_DEVICE_nGnRnE * 8)) | (MAIR_NORMAL_NOCACHE << (MAIR_IDX_NORMAL_NOCACHE * 8)));
+//     load_config_mair_el1(config);
+//     identity_paging_setup(BOOT_PGD_ATTR, BOOT_PUD_ATTR);
+// }

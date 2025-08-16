@@ -18,10 +18,6 @@ typedef __PTRDIFF_TYPE__ ptrdiff_t;
 typedef __UINTPTR_TYPE__ uintptr_t;
 typedef __INTPTR_TYPE__  intptr_t;
 
-// Boolean type
-typedef _Bool bool;
-#define true  1
-#define false 0
 
 // NULL pointer
 #define NULL ((void*)0)

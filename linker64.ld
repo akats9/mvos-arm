@@ -1,6 +1,9 @@
 ENTRY(_Reset)
 SECTIONS
 {
+	. = 0xffff000000000000; /* kernel space */
+  	. += 0x80000; /* kernel load address */
+  	_kernel_start = . ;
 	. = 0x40000000;
 	.startup . : { boot.o(.text) }
 	.text : { *(.text) }
