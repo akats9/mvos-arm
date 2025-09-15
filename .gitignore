@@ -6,3 +6,5 @@ debug.dtb
 monitor.log
 /build
 .vscode
+kernel64.elf
+kernel64.bin

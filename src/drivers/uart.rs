@@ -63,12 +63,34 @@ macro_rules! serial_println {
     };
 }
 
+/// Print formatted debug string to UART with colored output and DEBUG prefix
+#[macro_export]
+#[macro_use]
+macro_rules! dbg {
+    () => {
+        {
+            use core::fmt::Write;
+            let mut writer = $crate::UartWriter;
+            write!(writer, "[   DEBUG   ] \x1b[0;33m\x1b[0m\n").ok();
+        }
+    };
+    ($($arg:tt)*) => {
+        {
+            use core::fmt::Write;
+            let mut writer = $crate::UartWriter;
+            write!(writer, "[   DEBUG   ] \x1b[0;33m").ok();
+            write!(writer, $($arg)*).ok();
+            write!(writer, "\x1b[0m\n").ok();
+        }
+    };
+}
+
 // Example usage:
 // serial_print!("Hello, ");
 // serial_println!("world! Counter: {}", 42);
 // serial_println!(); // Just a newline
 
-/// FFI binding for C
+/// serial_println FFI binding for C (no varargs)
 #[unsafe(no_mangle)]
 pub extern "C" fn c_serial_println(message: *const c_char) {
     unsafe {
@@ -78,4 +100,28 @@ pub extern "C" fn c_serial_println(message: *const c_char) {
             Err(_) => serial_println!("[  SERIAL   ] \x1b[0;31mError: Invalid UTF-8 string passed from C.\x1b[0m"),
         }
     }
+}
+
+/// dbg FFI binding for C (no varargs)
+#[unsafe(no_mangle)]
+pub extern "C" fn c_dbg(message: *const c_char) {
+    unsafe {
+        let c_str = CStr::from_ptr(message);
+        match c_str.to_str() {
+            Ok(str_slice) => dbg!("{}", str_slice),
+            Err(_) => serial_println!("[  SERIAL   ] \x1b[0;31mError: Invalid UTF-8 string passed from C.\x1b[0m"),
+        }
+    }
+}
+
+/// dgb for integers (hex format, u64)
+#[unsafe(no_mangle)]
+pub extern "C" fn c_dgb_hex(hex: u64) {
+    dbg!("{:x}", hex);
+}
+
+/// dgb for integers (bin format, u64)
+#[unsafe(no_mangle)]
+pub extern "C" fn c_dbg_bin(bin: u64) {
+    dbg!("{:b}", bin);
 }

@@ -6,6 +6,10 @@ TARGET := aarch64-unknown-none
 KERNEL_NAME := kernel64
 RUST_CRATE := mvos_arm
 
+# Parameters
+GPU ?= virtio-gpu-pci
+MEMORY ?= 1G
+
 # Tools
 AS := aarch64-elf-as
 LD := aarch64-elf-ld
@@ -34,7 +38,8 @@ BINDINGS_HEADER := $(INCLUDE_DIR)/mvos_bindings.h
 ASFLAGS := -g
 CFLAGS := -ffreestanding -nostdlib -nostdinc \
           -mgeneral-regs-only -MMD -MP \
-          -Wall -Wextra -Werror \
+		  -g \
+          -Wall -Wextra  \
           -I$(INCLUDE_DIR) \
           -mcpu=cortex-a72
 LDFLAGS := -T $(LINKER_SCRIPT)
@@ -140,9 +145,21 @@ run: $(KERNEL_ELF)
 	qemu-system-aarch64 \
 		-M virt \
 		-cpu cortex-a72 \
-		-m 1G \
+		-m $(MEMORY) \
 		-kernel $< \
-		-device virtio-gpu-pci \
+		-device $(GPU) \
+		-serial stdio \
+		-monitor unix:/tmp/qemu-monitor-socket,server,nowait 
+
+.PHONY: debug
+debug: $(KERNEL_ELF)
+	@echo "Starting QEMU..."
+	qemu-system-aarch64 \
+		-M virt \
+		-cpu cortex-a72 \
+		-m $(MEMORY) \
+		-kernel $< \
+		-device $(GPU) \
 		-serial stdio \
 		-monitor unix:/tmp/qemu-monitor-socket,server,nowait \
 		-s -S
@@ -163,6 +180,10 @@ clean-all: clean
 # Rebuild everything from scratch
 .PHONY: rebuild
 rebuild: clean-all all
+
+# Generate bindings
+.PHONY: bindings
+bindings: $(BINDINGS_HEADER)
 
 # Debug information
 .PHONY: info
@@ -206,9 +227,11 @@ help:
 	@echo "  interactive    - Interactive build (like your original script)"
 	@echo "  bin            - Build kernel binary image"
 	@echo "  run            - Run kernel in QEMU"
+	@echo "  debug          - Run kernel in QEMU and await GDB"
 	@echo "  clean          - Clean build artifacts"
 	@echo "  clean-all      - Clean all artifacts including Cargo"
 	@echo "  rebuild        - Clean and rebuild everything"
+	@echo "  bindings       - Generate bindings header"
 	@echo "  info           - Show build configuration"
 	@echo "  check-tools    - Verify all required tools are available"
 	@echo "  help           - Show this help"

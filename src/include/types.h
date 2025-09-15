@@ -18,6 +18,23 @@ typedef __PTRDIFF_TYPE__ ptrdiff_t;
 typedef __UINTPTR_TYPE__ uintptr_t;
 typedef __INTPTR_TYPE__  intptr_t;
 
+// Shorter type aliases
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+
+typedef int8_t i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
+
+typedef size_t usize;
+
+// Boolean
+typedef int boolean;
+#define true 1;
+#define false 0;
 
 // NULL pointer
 #define NULL ((void*)0)

@@ -2,7 +2,11 @@
 
 # Build script for ARM kernel
 
+# !!! DEPRECATED - USE MAKE INSTEAD
+
 set -e  # Exit on any error
+
+echo "This build script is deprecated, use make instead"
 
 read -r -p "Clean before building? [y/N] " response
 if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]

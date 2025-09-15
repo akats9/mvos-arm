@@ -152,53 +152,54 @@ impl DataAbortInfo {
             access_size: ((iss >> 22) & 0x3) as u8,
         }
     }
-}
 
-fn get_fault_type(fsc: u8) -> &'static str {
-    match fsc & 0x3C {
-        0x00 => match fsc & 0x03 {
-            0 => "Address size fault, level 0",
-            1 => "Address size fault, level 1", 
-            2 => "Address size fault, level 2",
-            3 => "Address size fault, level 3",
-            _ => unreachable!(),
-        },
-        0x04 => match fsc & 0x03 {
-            0 => "Translation fault, level 0",
-            1 => "Translation fault, level 1",
-            2 => "Translation fault, level 2", 
-            3 => "Translation fault, level 3",
-            _ => unreachable!(),
-        },
-        0x08 => match fsc & 0x03 {
-            0 => "Access flag fault, level 0",
-            1 => "Access flag fault, level 1",
-            2 => "Access flag fault, level 2",
-            3 => "Access flag fault, level 3", 
-            _ => unreachable!(),
-        },
-        0x0C => match fsc & 0x03 {
-            0 => "Permission fault, level 0",
-            1 => "Permission fault, level 1",
-            2 => "Permission fault, level 2",
-            3 => "Permission fault, level 3",
-            _ => unreachable!(),
-        },
-        0x10 => "Synchronous external abort",
-        0x18 => "Synchronous parity or ECC error",
-        0x1C => "Synchronous parity or ECC error on translation table walk",
-        0x20 => "Alignment fault",
-        0x30 => "TLB conflict abort",
-        0x34 => "Implementation defined fault",
-        _ => "Unknown fault",
+    fn get_fault_type(&self) -> &'static str {
+        let fsc = self.fault_status_code;
+        match fsc & 0x3C {
+            0x00 => match fsc & 0x03 {
+                0 => "Address size fault, level 0",
+                1 => "Address size fault, level 1", 
+                2 => "Address size fault, level 2",
+                3 => "Address size fault, level 3",
+                _ => unreachable!(),
+            },
+            0x04 => match fsc & 0x03 {
+                0 => "Translation fault, level 0",
+                1 => "Translation fault, level 1",
+                2 => "Translation fault, level 2", 
+                3 => "Translation fault, level 3",
+                _ => unreachable!(),
+            },
+            0x08 => match fsc & 0x03 {
+                0 => "Access flag fault, level 0",
+                1 => "Access flag fault, level 1",
+                2 => "Access flag fault, level 2",
+                3 => "Access flag fault, level 3", 
+                _ => unreachable!(),
+            },
+            0x0C => match fsc & 0x03 {
+                0 => "Permission fault, level 0",
+                1 => "Permission fault, level 1",
+                2 => "Permission fault, level 2",
+                3 => "Permission fault, level 3",
+                _ => unreachable!(),
+            },
+            0x10 => "Synchronous external abort",
+            0x18 => "Synchronous parity or ECC error",
+            0x1C => "Synchronous parity or ECC error on translation table walk",
+            0x20 => "Alignment fault",
+            0x30 => "TLB conflict abort",
+            0x34 => "Implementation defined fault",
+            _ => "Unknown fault",
+        }
     }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn sync_current_el_spx_handler(frame: *mut InterruptFrame) {
     let frame = *frame;
-    serial_println!("Synchronous exception occured, ELR: {:x}, ESR: {:x}, FAR: {:x}", frame.elr, frame.esr, frame.far);
-    serial_println!("Attempting to parse exception...");
+    serial_println!("[ EXCEPTION ] Synchronous exception occured, ELR: 0x{:x}, ESR: 0x{:x}, FAR: 0x{:x}", frame.elr, frame.esr, frame.far);
+    serial_println!("[ EXCEPTION ] Attempting to parse exception...");
     
     let esr_info = EsrInfo::parse(frame.esr);
     match esr_info.exception_class {
@@ -207,31 +208,31 @@ pub unsafe extern "C" fn sync_current_el_spx_handler(frame: *mut InterruptFrame)
             let fault_addr = frame.far;
             let fault_pc = frame.elr;
 
-            serial_println!("Data abort at PC: {:#018x}, Address: {:#018x}", fault_pc, fault_addr);
-            serial_println!("Fault type: {}", get_fault_type(abort_info.fault_status_code));
-            serial_println!("Access: {}", if abort_info.write_not_read {"Write"} else {"Read"});
+            serial_println!("[ EXCEPTION ] Data abort at PC: 0x{:#018x}, Address: 0x{:#018x}", fault_pc, fault_addr);
+            serial_println!("[ EXCEPTION ] Fault type: {}", abort_info.get_fault_type());
+            serial_println!("[ EXCEPTION ] Access: {}", if abort_info.write_not_read {"Write"} else {"Read"});
 
             handle_page_fault(fault_addr, fault_pc, abort_info.write_not_read);
         },
 
         ExceptionClass::InstructionAbortLowerEL | ExceptionClass::InstructionAbortSameEL => {
             let fault_addr = frame.elr;
-            serial_println!("Instruction aborted at PC: {:#018x}", fault_addr);
+            serial_println!("[ EXCEPTION ] Instruction aborted at PC: 0x{:#018x}", fault_addr);
             handle_instruction_abort(fault_addr);
         },
 
         ExceptionClass::PcAlignment => {
-            serial_println!("PC alignment exception at {:#018x}", frame.elr);
+            serial_println!("[ EXCEPTION ] PC alignment exception at 0x{:#018x}", frame.elr);
             panic!("UNALIGNED PC");
         },
 
         ExceptionClass::SpAlignment => {
-            serial_println!("SP alignment exception at {:018x}", frame.elr);
+            serial_println!("[ EXCEPTION ] SP alignment exception at 0x{:018x}", frame.elr);
             panic!("UNALIGNED SP");
         }, 
 
         _ => {
-            serial_println!("Unhandled exception: {:?}", esr_info.exception_class);
+            serial_println!("[ EXCEPTION ] Unhandled exception: {:?}", esr_info.exception_class);
             panic!("UNHANDLED EXCEPTION");
         }
     }
@@ -247,5 +248,10 @@ fn handle_instruction_abort(fault_addr: u64) {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn interrupt_handler() {
+    unimplemented!()
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn serror_current_el_spx_handler() {
     unimplemented!()
 }

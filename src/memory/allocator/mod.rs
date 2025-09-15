@@ -48,4 +48,74 @@ pub extern "C" fn align_up(addr: usize, align: usize) -> usize {
     }
 }
 
+pub mod alloc_ffi {
+    use core::{alloc::{Layout, GlobalAlloc}, ptr::{null, null_mut}};
+
+    use crate::memory::allocator::ALLOCATOR;
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn kmalloc(size: usize) -> *mut u8 {
+        if size == 0 {
+            return core::ptr::null_mut();
+        }
+
+        let layout = match Layout::from_size_align(size, 1) {
+            Ok(layout) => layout,
+            Err(_) => return core::ptr::null_mut(),
+        };
+
+        unsafe {
+            ALLOCATOR.alloc(layout)
+        }
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn kmalloc_aligned(size: usize, align: usize) -> *mut u8 {
+        if size == 0 {
+            return null_mut();
+        }
+
+        let layout = match Layout::from_size_align(size, align) {
+            Ok(layout) => layout,
+            Err(_) => return null_mut(),
+        };
+
+        unsafe {
+            ALLOCATOR.alloc(layout)
+        }
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn kfree(ptr: *mut u8, size: usize) {
+        if ptr.is_null() || size == 0 {
+            return;
+        }
+
+        let layout = match Layout::from_size_align(size, 1) {
+            Ok(layout) => layout,
+            Err(_) => return,
+        };
+
+        unsafe {
+            ALLOCATOR.dealloc(ptr, layout);
+        }
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn kfree_aligned(ptr: *mut u8, size: usize, align: usize) {
+        if ptr.is_null() || size == 0 {
+            return;
+        }
+
+        let layout = match Layout::from_size_align(size, align) {
+            Ok(layout) => layout,
+            Err(_) => return,
+        };
+
+        unsafe {
+            ALLOCATOR.dealloc(ptr, layout);
+        }
+    }
+}
+
 pub mod free_list;

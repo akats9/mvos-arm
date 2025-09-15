@@ -1,5 +1,4 @@
-pub mod virtio;
-pub mod ramfb;
+pub mod graphics;
 //pub mod dtb_parser;
 pub mod uart;
 pub mod pci;
