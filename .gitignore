@@ -8,3 +8,4 @@ monitor.log
 .vscode
 kernel64.elf
 kernel64.bin
+disassembly.txt

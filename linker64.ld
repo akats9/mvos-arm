@@ -1,14 +1,13 @@
-ENTRY(_Reset)
+ENTRY(_Start)
 SECTIONS
 {
-	. = 0xffff000000000000; /* kernel space */
-  	. += 0x80000; /* kernel load address */
-  	_kernel_start = . ;
-	. = 0x40000000;
+  	. = 0x40000000; /* kernel load address */
+  	kernel_start = . ;
 	.startup . : { boot.o(.text) }
 	.text : { *(.text) }
 	.data : { *(.data) }
-	.bss : { *(.bss COMMON) }
+	.bss : { *(.bss COMMON) } 
+	
 	. = ALIGN(8);
 	. = . + 0x2800000; /* 40MiB of stack memory */
 	stack_top = .;
@@ -18,7 +17,7 @@ SECTIONS
         *(COMMON)
         *(.bss)
         ebss = .;
-	endkernel = .;
+	
     }
 
 	. = 0x41000000;

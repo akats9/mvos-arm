@@ -39,6 +39,7 @@ ASFLAGS := -g
 CFLAGS := -ffreestanding -nostdlib -nostdinc \
           -mgeneral-regs-only -MMD -MP \
 		  -g \
+		  -O0 \
           -Wall -Wextra  \
           -I$(INCLUDE_DIR) \
           -mcpu=cortex-a72

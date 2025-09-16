@@ -162,5 +162,9 @@ void mmu_init() {
 
     verify_MMU();
 
-    return;
+    asm volatile (
+        "ret\n\t"
+        ".space 4"
+        ::: "memory"
+    );
 }
