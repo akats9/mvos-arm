@@ -11,11 +11,12 @@ GPU ?= virtio-gpu-pci
 MEMORY ?= 1G
 
 # Tools
-AS := aarch64-elf-as
-LD := aarch64-elf-ld
-OBJCOPY := aarch64-elf-objcopy
-CC := aarch64-elf-gcc
-AR := aarch64-elf-ar
+TOOLCHAIN ?= aarch64-elf-
+AS := $(TOOLCHAIN)as
+LD := $(TOOLCHAIN)ld
+OBJCOPY := $(TOOLCHAIN)objcopy
+CC := $(TOOLCHAIN)gcc
+AR := $(TOOLCHAIN)ar
 CARGO := cargo
 
 # Directories
