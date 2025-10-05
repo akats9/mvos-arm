@@ -25,7 +25,7 @@ sys_includes = []
 includes = []
 no_includes = true
 # cpp_compat = true
-after_includes = "#include \"types.h\""
+after_includes = "#include \"types.h\" \n#include <stdbool.h>"
 
 
 

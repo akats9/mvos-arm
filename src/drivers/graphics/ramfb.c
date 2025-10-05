@@ -23,20 +23,23 @@ typedef struct __attribute__((packed)) RamFBCfg {
 } RamFBCfg; 
 
 void qemu_dma_transfer(u32 control, u32 len, u64 addr) {
-    u64* fw_cfg_dma = (u64*)0x9020010;
-    u32 control_be = __builtin_bswap32(control);
-    u32 len_be = __builtin_bswap32(len);
-    u64 addr_be = __builtin_bswap64(addr);
-    struct FWCfgDmaAccess dma = {control_be, len_be, addr_be,};
-
+    volatile u64* fw_cfg_dma = (volatile u64*)0x9020010;
+    
+    static volatile struct FWCfgDmaAccess dma __attribute__((aligned(8)));
+    dma.control = __builtin_bswap32(control);
+    dma.len = __builtin_bswap32(len);
+    dma.addr = __builtin_bswap64(addr);
+    
     u64 dma_addr = (u64)&dma;
 
     *fw_cfg_dma = __builtin_bswap64(dma_addr);
 
+    asm volatile ("dmb sy" ::: "memory");
+
     c_dbg("Enter loop ☦️");
 
-    while (dma.control & ~QEMU_CFG_DMA_CTL_ERROR);
-    if ((dma.control & QEMU_CFG_DMA_CTL_ERROR) == 1) c_serial_println("[   RAMFB   ] \x1b[0;31mAn error occured in qemu_dma_transfer\x1b[0m");
+    while (dma.control & ~__builtin_bswap32(QEMU_CFG_DMA_CTL_ERROR)) asm volatile ("" ::: "memory");
+    if ((__builtin_bswap32(dma.control) & QEMU_CFG_DMA_CTL_ERROR) == 1) c_serial_println("[   RAMFB   ] \x1b[0;31mAn error occured in qemu_dma_transfer\x1b[0m");
 }
 
 boolean compare_etc_ramfb(uint8_t* bytes, size_t len) {
@@ -85,19 +88,46 @@ void c_setup_ramfb(char* fb_addr, u32 width, u32 height) {
         else c_serial_println("[   RAMFB   ] \x1b[0;31mNo entry found\x1b[0m");
     }
 
-    u32 pixel_format = ((u32)'R') | (((u32)'G') << 8) | (((u32)'2') << 16) | (((u32)'4') << 24);
+    //u32 pixel_format = ((u32)'R') | (((u32)'X') << 8) | (((u32)'2') << 16) | (((u32)'4') << 24);
+    u32 fourcc = 0x34325258;
     u32 bpp = BPP;
 
     struct RamFBCfg ramfb_cfg = {
         __builtin_bswap64((u64)fb_addr),
-        __builtin_bswap32(pixel_format),
+        __builtin_bswap32(fourcc),
         0,
         __builtin_bswap32((u32)width),
         __builtin_bswap32((u32)height),
         __builtin_bswap32((u32)width * bpp),
     };
 
-    qemu_dma_transfer(((u32)__builtin_bswap32(ramfb.select)) << 16 | QEMU_CFG_DMA_CTL_SELECT | QEMU_CFG_DMA_CTL_WRITE, (u32)sizeof(RamFBCfg), (u64)&ramfb_cfg);
+    c_dbg("RamFB config:");
+    c_dbg("  addr: ");
+    c_dgb_hex(__builtin_bswap64(ramfb_cfg.addr));
+    c_dbg("  fourcc: ");
+    c_dgb_hex(__builtin_bswap32(ramfb_cfg.fmt));
+    c_dbg("  flags: ");
+    c_dgb_hex(__builtin_bswap32(ramfb_cfg.flags));
+    c_dbg("  width: ");
+    c_dgb_hex(__builtin_bswap32(ramfb_cfg.w));
+    c_dbg("  height: ");
+    c_dgb_hex(__builtin_bswap32(ramfb_cfg.h));
+    c_dbg("  stride: ");
+    c_dgb_hex(__builtin_bswap32(ramfb_cfg.st));
+
+    c_dbg("RamFB select:");
+    c_dgb_hex(ramfb.select);
+
+    c_dbg("Full control word:");
+    c_dgb_hex(((u32)(ramfb.select)) << 16 | QEMU_CFG_DMA_CTL_SELECT | QEMU_CFG_DMA_CTL_WRITE);
+
+    fb_addr[0] = 0xde;
+    asm volatile ("dc cvac, %0" :: "r"(&fb_addr[0]) : "memory");
+    char readback = fb_addr[0];
+    if (readback == 0xde) c_dbg("FB works");
+    else c_dbg("FB does not work");
+
+    qemu_dma_transfer(((u32)__builtin_bswap16(ramfb.select)) << 16 | QEMU_CFG_DMA_CTL_SELECT | QEMU_CFG_DMA_CTL_WRITE, (u32)sizeof(RamFBCfg), (u64)&ramfb_cfg);
 }
 
 void ramfb_clear(u8 color, char* fb_addr) {

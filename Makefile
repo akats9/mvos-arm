@@ -10,6 +10,8 @@ RUST_CRATE := mvos_arm
 GPU ?= virtio-gpu-pci
 MEMORY ?= 1G
 
+DISASSEMBLY_OUT ?= disassembly.txt
+
 # Tools
 TOOLCHAIN ?= aarch64-elf-
 AS := $(TOOLCHAIN)as
@@ -17,6 +19,7 @@ LD := $(TOOLCHAIN)ld
 OBJCOPY := $(TOOLCHAIN)objcopy
 CC := $(TOOLCHAIN)gcc
 AR := $(TOOLCHAIN)ar
+OBJDUMP := $(TOOLCHAIN)objdump
 CARGO := cargo
 
 # Directories
@@ -37,8 +40,9 @@ BINDINGS_HEADER := $(INCLUDE_DIR)/mvos_bindings.h
 
 # Compilation flags
 ASFLAGS := -g
-CFLAGS := -ffreestanding -nostdlib -nostdinc \
+CFLAGS := -ffreestanding -nostdlib  \
           -mgeneral-regs-only -MMD -MP \
+		  -std=gnu99 \
 		  -g \
 		  -O0 \
           -Wall -Wextra  \
@@ -170,7 +174,7 @@ debug: $(KERNEL_ELF)
 .PHONY: clean
 clean:
 	@echo "Cleaning build artifacts..."
-	rm -f $(KERNEL_ELF) $(KERNEL_BIN)
+	rm -f $(KERNEL_ELF) $(KERNEL_BIN) 
 	rm -rf $(BUILD_DIR)
 
 .PHONY: clean-all
@@ -186,6 +190,11 @@ rebuild: clean-all all
 # Generate bindings
 .PHONY: bindings
 bindings: $(BINDINGS_HEADER)
+
+# Dump disassembly
+.PHONY: dump
+dump: all
+	$(OBJDUMP) -d $(KERNEL_NAME).elf > $(DISASSEMBLY_OUT)
 
 # Debug information
 .PHONY: info
@@ -234,6 +243,7 @@ help:
 	@echo "  clean-all      - Clean all artifacts including Cargo"
 	@echo "  rebuild        - Clean and rebuild everything"
 	@echo "  bindings       - Generate bindings header"
+	@echo "  dump    - Build kernel and dump disassembly"
 	@echo "  info           - Show build configuration"
 	@echo "  check-tools    - Verify all required tools are available"
 	@echo "  help           - Show this help"

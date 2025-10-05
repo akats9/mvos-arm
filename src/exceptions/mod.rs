@@ -1,6 +1,6 @@
 use core::{arch::asm, panic};
 
-use crate::serial_println;
+use crate::{dbg, serial_println};
 
 pub unsafe fn set_exception_vectors() {
     unsafe extern "C" { static exception_vectors: [u8; 0]; }
@@ -208,7 +208,7 @@ pub unsafe extern "C" fn sync_current_el_spx_handler(frame: *mut InterruptFrame)
             let fault_addr = frame.far;
             let fault_pc = frame.elr;
 
-            serial_println!("[ EXCEPTION ] Data abort at PC: 0x{:#018x}, Address: 0x{:#018x}", fault_pc, fault_addr);
+            serial_println!("[ EXCEPTION ] Data abort at PC: {:#018x}, Address: {:#018x}", fault_pc, fault_addr);
             serial_println!("[ EXCEPTION ] Fault type: {}", abort_info.get_fault_type());
             serial_println!("[ EXCEPTION ] Access: {}", if abort_info.write_not_read {"Write"} else {"Read"});
 

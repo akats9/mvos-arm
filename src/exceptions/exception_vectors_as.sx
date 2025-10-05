@@ -1,3 +1,5 @@
+#include mvos_bindings.h
+
 .section .text.exception_vectors
 .align 11  // 2KB alignment
 .global exception_vectors
@@ -47,6 +49,11 @@ exception_vectors:
 // Sync Exception handler
 .global sync_current_el_spx_handler_as
 sync_current_el_spx_handler_as:
+
+    mrs x19, currentel
+    cmp x19, #4
+    b.ne wrongEL
+
     sub sp, sp, #192
 
     stp x0, x1, [sp, #0]
@@ -84,6 +91,15 @@ sync_current_el_spx_handler_as:
 
     add sp, sp, #192
     eret;
+
+wrongEL_msg:
+    .asciz "\x1b[1;31mWRONG EL DETECTED!!!\n\x1b[0m"
+    .align 4
+
+.global wrongEL
+wrongEL:
+    mrs x0, currentel
+    bl c_dbg_bin
 
 // SError Exception handler
 .global serror_current_el_spx_handler_as

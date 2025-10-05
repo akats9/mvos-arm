@@ -8,7 +8,7 @@ SECTIONS
 	.data : { *(.data) }
 	.bss : { *(.bss COMMON) } 
 	
-	. = ALIGN(8);
+	. = ALIGN(16);
 	. = . + 0x2800000; /* 40MiB of stack memory */
 	stack_top = .;
 

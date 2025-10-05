@@ -1,4 +1,5 @@
-#include "types.h"
+#include "types.h" 
+#include <stdbool.h>
 
 #define BPP 4
 

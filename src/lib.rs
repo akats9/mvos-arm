@@ -10,7 +10,7 @@ use core::{arch::asm, ffi::{c_char, CStr}};
 
 use drivers::uart::UartWriter;
 
-use crate::{bootscreen::print_bootscreen, drivers::graphics::ramfb::setup_ramfb, exceptions::set_exception_vectors, memory::allocator::{alloc_ffi::kmalloc, init_heap}};
+use crate::{bootscreen::print_bootscreen, drivers::graphics::ramfb::setup_ramfb, exceptions::set_exception_vectors, memory::allocator::{alloc_ffi::{kmalloc, kmalloc_aligned}, init_heap}};
 
 // C functions
 unsafe extern "C" {
@@ -48,20 +48,25 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
     unsafe { mmu_init(); }
 
     serial_println!("[ ☦️SYSTEM  ] Allocating Ramfb framebuffer...");
-    let fb_addr = kmalloc((BPP*SCREENWIDTH*SCREENHEIGHT) as usize);
+    let fb_addr = kmalloc_aligned((BPP*SCREENWIDTH*SCREENHEIGHT) as usize, 4096);
 
     serial_println!("[  DRIVERS  ] Enabling Ramfb device...");
     unsafe { c_setup_ramfb(fb_addr, SCREENWIDTH, SCREENHEIGHT);}
+
+    unsafe { ramfb_clear(0xff, fb_addr) };
+
     //setup_ramfb(fb_addr as *mut u64, SCREENWIDTH, SCREENHEIGHT);
 
-    let virtio_gpu_base = drivers::pci::find_pci_device(0x1af4, 0x1050);
+    // let virtio_gpu_base = drivers::pci::find_pci_device(0x1af4, 0x1050);
 
-    serial_println!("[  DRIVERS  ] Finding VirtIO GPU device... {}\x1b[0m", {if virtio_gpu_base == 0x0 {"\x1b[0;31mFAILED"} else {"\x1b[0;32mSUCCESS"}});
+    // serial_println!("[  DRIVERS  ] Finding VirtIO GPU device... {}\x1b[0m", {if virtio_gpu_base == 0x0 {"\x1b[0;31mFAILED"} else {"\x1b[0;32mSUCCESS"}});
 
-    unsafe { 
-        let virtio_gpu_enabled =  pci_enable_device_c(virtio_gpu_base); 
-        serial_println!("[  DRIVERS  ] Enabling VirtIO GPU device... {}\x1b[0m", {if virtio_gpu_enabled {"\x1b[0;32mSUCCESS"} else {"\x1b[0;31mFAILED"}});
-    }
+    // unsafe { 
+    //     let virtio_gpu_enabled =  pci_enable_device_c(virtio_gpu_base); 
+    //     serial_println!("[  DRIVERS  ] Enabling VirtIO GPU device... {}\x1b[0m", {if virtio_gpu_enabled {"\x1b[0;32mSUCCESS"} else {"\x1b[0;31mFAILED"}});
+    // }
+
+    serial_println!("[ ☦️SYSTEM  ]\x1b[0;32m All processes done.\x1b[0m");
 
     loop {}
 }

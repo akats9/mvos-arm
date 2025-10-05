@@ -1,6 +1,5 @@
-#include "../include/types.h"
+#include <global_include.h>
 #include "pci.h"
-#include "../include/mvos_bindings.h"
 
 #define PCI_BAR_BASE_OFFSET 0x10
 

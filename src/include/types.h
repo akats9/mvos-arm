@@ -1,3 +1,5 @@
+
+
 #ifndef TYPES_H
 #define TYPES_H
 
@@ -30,6 +32,10 @@ typedef int32_t i32;
 typedef int64_t i64;
 
 typedef size_t usize;
+
+typedef unsigned long int op_t;
+#define OPSIZ (sizeof(op_t))
+typedef char byte;
 
 // Boolean
 typedef int boolean;

@@ -26,28 +26,111 @@
 #define GRANULE_4KB 0x1000
 
 static uint64_t kernel_start = 0x40000000; // ☦️
-static uint64_t kcode_end = 0x43000000;
+static uint64_t kcode_end    = 0x50000000;
 
 uint64_t page_table_l0[PAGE_TABLE_ENTRIES] __attribute__((aligned(PAGE_SIZE)));
+
+// void mmu_map_2mb(uint64_t va, uint64_t pa, uint64_t attr_index) {
+//     uint64_t l0_index = (va >> 39) & 0x1ff;
+//     uint64_t l1_index = (va >> 30) & 0x1ff;
+//     uint64_t l2_index = (va >> 21) & 0x1ff;
+
+//     if (!(page_table_l0[l0_index] & 1)) {
+//         uint64_t* l1 = (uint64_t*)kmalloc_aligned(PAGE_SIZE, PAGE_SIZE);
+//         page_table_l0[l0_index] = ((uint64_t)l1 & ENTRY_MASK) | PD_TABLE;
+
+//         if (!(l1[l1_index] & 1)) {
+//             uint64_t* l2 = (uint64_t*)kmalloc_aligned(PAGE_SIZE, PAGE_SIZE);
+//             l1[l1_index] = ((uint64_t)l2 & ENTRY_MASK) | PD_TABLE;
+//         }
+
+//         uint64_t* l2 = (uint64_t*)(l1[l1_index] & ENTRY_MASK);
+//         uint64_t attr = ((uint64_t)1 << UXN_BIT) | ((uint64_t)0 << PXN_BIT) | (1 << AF_BIT) | (0b11 << SH_BIT) | (attr_index << MAIR_BIT) | PD_BLOCK;
+//         l2[l2_index] = (pa & ENTRY_MASK) | attr;
+//     }
+// }
+
+void* memset(void* ptr, int value, size_t len) {
+    long int dstp = (long int)ptr;
+
+    if (len >= 8) {
+        size_t xlen;
+        op_t cccc;
+
+        cccc = (unsigned char)value;
+        cccc |= cccc << 8;
+        cccc |= cccc << 16;
+        if (OPSIZ > 4) cccc |= (cccc << 16) << 16;
+
+        while (dstp % OPSIZ != 0) {
+            ((byte *) dstp)[0] = value;
+            dstp++;
+            len--;
+        }
+
+        xlen = len / (OPSIZ * 8);
+        while (xlen > 0) {
+            ((op_t*) dstp)[0] = cccc;
+            ((op_t*) dstp)[1] = cccc;
+            ((op_t*) dstp)[2] = cccc;
+            ((op_t*) dstp)[3] = cccc;
+            ((op_t*) dstp)[4] = cccc;
+            ((op_t*) dstp)[5] = cccc;
+            ((op_t*) dstp)[6] = cccc;
+            ((op_t*) dstp)[7] = cccc;
+            dstp += 8 * OPSIZ;
+            xlen--;
+        }
+
+        len %= OPSIZ * 8;
+
+        xlen = len / OPSIZ;
+        while (xlen > 0) {
+            ((op_t*) dstp)[0] = cccc;
+            dstp += OPSIZ;
+            xlen--;
+        }
+        len %= OPSIZ;
+    }
+    while (len > 0) {
+        ((byte*) dstp)[0] = value;
+        dstp++;
+        len--;
+    }
+
+    return ptr;
+}
 
 void mmu_map_2mb(uint64_t va, uint64_t pa, uint64_t attr_index) {
     uint64_t l0_index = (va >> 39) & 0x1ff;
     uint64_t l1_index = (va >> 30) & 0x1ff;
     uint64_t l2_index = (va >> 21) & 0x1ff;
 
+    // Get or create L1
+    uint64_t* l1;
     if (!(page_table_l0[l0_index] & 1)) {
-        uint64_t* l1 = (uint64_t*)kmalloc_aligned(PAGE_SIZE, PAGE_SIZE);
+        l1 = (uint64_t*)kmalloc_aligned(PAGE_SIZE, PAGE_SIZE);
+        memset(l1, 0, PAGE_SIZE);
         page_table_l0[l0_index] = ((uint64_t)l1 & ENTRY_MASK) | PD_TABLE;
-
-        if (!(l1[l1_index] & 1)) {
-            uint64_t* l2 = (uint64_t*)kmalloc_aligned(PAGE_SIZE, PAGE_SIZE);
-            l1[l1_index] = ((uint64_t)l2 & ENTRY_MASK) | PD_TABLE;
-        }
-
-        uint64_t* l2 = (uint64_t*)(l1[l1_index] & ENTRY_MASK);
-        uint64_t attr = ((uint64_t)1 << UXN_BIT) | ((uint64_t)0 << PXN_BIT) | (1 << AF_BIT) | (0b11 << SH_BIT) | (attr_index << MAIR_BIT) | PD_BLOCK;
-        l2[l2_index] = (pa & ENTRY_MASK) | attr;
+    } else {
+        l1 = (uint64_t*)(page_table_l0[l0_index] & ENTRY_MASK);
     }
+
+    // Get or create L2
+    uint64_t* l2;
+    if (!(l1[l1_index] & 1)) {
+        l2 = (uint64_t*)kmalloc_aligned(PAGE_SIZE, PAGE_SIZE);
+        memset(l2, 0, PAGE_SIZE);
+        l1[l1_index] = ((uint64_t)l2 & ENTRY_MASK) | PD_TABLE;
+    } else {
+        l2 = (uint64_t*)(l1[l1_index] & ENTRY_MASK);
+    }
+
+    // Create mapping
+    uint64_t attr = ((uint64_t)1 << UXN_BIT) | ((uint64_t)0 << PXN_BIT) | 
+                    (1 << AF_BIT) | (0b11 << SH_BIT) | 
+                    (attr_index << MAIR_BIT) | PD_BLOCK;
+    l2[l2_index] = (pa & ENTRY_MASK) | attr;
 }
 
 /** Level 0 = EL0, Level 1 = EL1, Level 2 = Shared */
@@ -135,7 +218,7 @@ void mmu_init() {
     uint64_t kend = kcode_end;
 
     for (uint64_t addr = kstart; addr <= kend; addr += GRANULE_2MB) mmu_map_2mb(addr, addr, MAIR_IDX_NORMAL);
-    for (uint64_t addr = UART_BASE; addr <= UART_BASE + 0x1000; addr += GRANULE_4KB) mmu_map_4kb(addr, addr, MAIR_IDX_DEVICE, 1);
+    for (uint64_t addr = UART_BASE - 0x1000; addr <= UART_BASE + 0x100000; addr += GRANULE_4KB) mmu_map_4kb(addr, addr, MAIR_IDX_DEVICE, 1);
 
     uint64_t mair = (MAIR_DEVICE_nGnRnE << (MAIR_IDX_DEVICE * 8)) | (MAIR_NORMAL_NOCACHE << (MAIR_IDX_NORMAL * 8));
     asm volatile ("msr mair_el1, %0" :: "r"(mair));
@@ -161,7 +244,4 @@ void mmu_init() {
     asm volatile ("nop");
 
     verify_MMU();
-
-    return;
-    asm volatile (".space 4" ::: "memory");
 }
