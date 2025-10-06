@@ -21,6 +21,7 @@ CC := $(TOOLCHAIN)gcc
 AR := $(TOOLCHAIN)ar
 OBJDUMP := $(TOOLCHAIN)objdump
 CARGO := cargo
+PYTHON := python3
 
 # Directories
 BUILD_DIR := build
@@ -37,6 +38,9 @@ KERNEL_BIN := $(KERNEL_NAME).bin
 RUST_LIB := $(TARGET_DIR)/lib$(RUST_CRATE).a
 C_LIB := $(BUILD_DIR)/libckernel.a
 BINDINGS_HEADER := $(INCLUDE_DIR)/mvos_bindings.h
+BOOTSCREEN_SCRIPT := generate_bootscreen.py
+BOOTSCREEN := cross_framebuffer.raw
+BOOTSCREEN_OBJECT := cross_framebuffer.o
 
 # Compilation flags
 ASFLAGS := -g
@@ -87,6 +91,14 @@ $(BUILD_DIR):
 	@mkdir -p $(INCLUDE_DIR)
 	@find src -type d 2>/dev/null | sed 's|src|$(BUILD_DIR)|' | xargs mkdir -p 2>/dev/null || true
 
+# Generate the raw bootscreen data
+$(BOOTSCREEN): $(BOOTSCREEN_SCRIPT)
+	$(PYTHON) $(BOOTSCREEN_SCRIPT)
+
+# Generate the bootscreen binary object.
+$(BOOTSCREEN_OBJECT): $(BOOTSCREEN)
+	$(OBJCOPY) -I binary -O elf64-littleaarch64 -B aarch64 $(BOOTSCREEN) $(BOOTSCREEN_OBJECT)
+
 # Step 1: Assembly compilation
 $(BOOT_OBJ): $(BOOT_ASM) | $(BUILD_DIR)
 	@echo "Assembling boot64.s..."
@@ -126,9 +138,9 @@ $(C_LIB): $(ALL_OBJECTS) | $(BUILD_DIR)
 	fi
 
 # Step 6: Final kernel linking
-$(KERNEL_ELF): $(BOOT_OBJ) $(C_LIB) $(RUST_LIB) $(LINKER_SCRIPT)
+$(KERNEL_ELF): $(BOOT_OBJ) $(C_LIB) $(RUST_LIB) $(LINKER_SCRIPT) $(BOOTSCREEN_OBJECT)
 	@echo "Linking kernel..."
-	$(LD) $(LDFLAGS) $(BOOT_OBJ) \
+	$(LD) $(LDFLAGS) $(BOOT_OBJ) $(BOOTSCREEN_OBJECT) \
 		--whole-archive $(C_LIB) \
 		--no-whole-archive \
 		--whole-archive $(RUST_LIB) \
@@ -174,7 +186,7 @@ debug: $(KERNEL_ELF)
 .PHONY: clean
 clean:
 	@echo "Cleaning build artifacts..."
-	rm -f $(KERNEL_ELF) $(KERNEL_BIN) 
+	rm -f $(KERNEL_ELF) $(KERNEL_BIN) $(BOOTSCREEN_OBJECT)
 	rm -rf $(BUILD_DIR)
 
 .PHONY: clean-all
@@ -224,6 +236,7 @@ check-tools:
 	@which $(LD) > /dev/null || (echo "ERROR: $(LD) not found" && exit 1)
 	@which $(AR) > /dev/null || (echo "ERROR: $(AR) not found" && exit 1)
 	@which $(CARGO) > /dev/null || (echo "ERROR: $(CARGO) not found" && exit 1)
+	@which $(PYTHON) > /dev/null || (echo "ERROR: $(PYTHON) not found" && exit 1)
 	@which cbindgen > /dev/null || (echo "ERROR: cbindgen not found" && exit 1)
 	@which qemu-system-aarch64 > /dev/null || (echo "WARNING: qemu-system-aarch64 not found")
 	@echo "All required tools found!"

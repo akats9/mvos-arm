@@ -74,8 +74,9 @@ boolean compare_etc_ramfb(uint8_t* bytes, size_t len) {
     return true; // Match
 }
 
-void c_setup_ramfb(char* fb_addr, u32 width, u32 height) {
+int c_setup_ramfb(char* fb_addr, u32 width, u32 height) {
     u32 num_entries = 0xffffffff;
+    int ret;
     u32 fw_cfg_file_directory = 0x19;
     qemu_dma_transfer((u32)(fw_cfg_file_directory << 16 | QEMU_CFG_DMA_CTL_SELECT | QEMU_CFG_DMA_CTL_READ), sizeof(u32), (u64)&num_entries);
     num_entries = __builtin_bswap32(num_entries);
@@ -84,8 +85,8 @@ void c_setup_ramfb(char* fb_addr, u32 width, u32 height) {
     for (u32 i = 0; i < num_entries; i++) {
         qemu_dma_transfer(QEMU_CFG_DMA_CTL_READ, (u32)sizeof(FWCfgFile), (u64)&ramfb);
 
-        if (compare_etc_ramfb(ramfb.name, 56)) { c_serial_println("[   RAMFB   ] \x1b[0;32mFound entry \"etc/ramfb\", break.\x1b[0;m"); break; }
-        else c_serial_println("[   RAMFB   ] \x1b[0;31mNo entry found\x1b[0m");
+        if (compare_etc_ramfb(ramfb.name, 56)) { c_serial_println("[   RAMFB   ] \x1b[0;32mFound entry \"etc/ramfb\", break.\x1b[0;m"); ret = 0; break; }
+        else c_serial_println("[   RAMFB   ] \x1b[0;31mNo entry found\x1b[0m"); ret--;
     }
 
     //u32 pixel_format = ((u32)'R') | (((u32)'X') << 8) | (((u32)'2') << 16) | (((u32)'4') << 24);
@@ -128,10 +129,49 @@ void c_setup_ramfb(char* fb_addr, u32 width, u32 height) {
     else c_dbg("FB does not work");
 
     qemu_dma_transfer(((u32)__builtin_bswap16(ramfb.select)) << 16 | QEMU_CFG_DMA_CTL_SELECT | QEMU_CFG_DMA_CTL_WRITE, (u32)sizeof(RamFBCfg), (u64)&ramfb_cfg);
+
+    return ret;
 }
 
 void ramfb_clear(u8 color, char* fb_addr) {
     for (u32 x = 0; x < BPP*SCREENWIDTH*SCREENHEIGHT; x++) {
         *(fb_addr + x) = color;
+    }
+}
+
+void ramfb_set_pixel(unsigned int x, unsigned int y, u8 r, u8 g, u8 b, char* fb) {
+    int offset = (y * SCREENWIDTH + x) * BPP;  // 4 bytes per pixel
+    fb[offset + 0] = b;  // Blue
+    fb[offset + 1] = g;  // Green
+    fb[offset + 2] = r;  // Red
+    fb[offset + 3] = 0;  // X (unused/padding)
+}
+
+void ramfb_gradient(char* fb_addr) {
+    char r,g,b;
+    for (int y = 0; y < SCREENHEIGHT; y++) {
+        for (int x = 0; x < SCREENWIDTH; x++) {
+            r = (128 + 127 * ((x+y) % 256) / 256);
+            g = (128 + 127 * ((x-y) % 256) / 256);
+            b = (128 + 127 * ((x*y) % 256) / 256);
+            ramfb_set_pixel(x,y,r,g,b,fb_addr);
+        }
+    }
+}
+
+void ramfb_matrix(char* fb_addr) {
+    for (int y = 0; y < SCREENHEIGHT; y++) {
+        for (int x = 0; x < SCREENWIDTH; x++) {
+            u8 green = (y * 255) / SCREENHEIGHT;
+            ramfb_set_pixel(x, y, 0, green, 0, fb_addr);
+        }
+    }
+}
+
+void ramfb_draw_rect(u32 minx, u32 maxx, u32 miny, u32 maxy, u8 r, u8 g, u8 b, char* fb_addr) {
+    for (u32 y = miny; y < maxy; y++) {
+        for (u32 x = minx; x < maxx; x++) {
+            ramfb_set_pixel(x,y,r,g,b,fb_addr);
+        }
     }
 }

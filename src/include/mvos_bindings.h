@@ -3,9 +3,9 @@
 
 #define BPP 4
 
-#define SCREENHEIGHT 480
+#define SCREENHEIGHT 720
 
-#define SCREENWIDTH 640
+#define SCREENWIDTH 1280
 
 typedef struct InterruptFrame {
     uint64_t x0;
@@ -61,7 +61,9 @@ void c_panic(const char *msg);
  */
 void c_serial_println(const char *message);
 
-extern void c_setup_ramfb(char *fb_addr, uint32_t width, uint32_t height);
+extern int32_t c_setup_ramfb(char *fb_addr, uint32_t width, uint32_t height);
+
+extern void display_bootscreen(char *fb_addr);
 
 void interrupt_handler(void);
 
@@ -88,6 +90,21 @@ extern bool pci_enable_device_c(uint64_t base);
 uint64_t pci_get_bar(uint64_t base, uint8_t offset, uint8_t index);
 
 extern void ramfb_clear(uint8_t color, char *fb_addr);
+
+extern void ramfb_draw_rect(uint32_t minx,
+                            uint32_t maxx,
+                            uint32_t miny,
+                            uint32_t maxy,
+                            uint8_t r,
+                            uint8_t g,
+                            uint8_t b,
+                            char *fb_addr);
+
+extern void ramfb_gradient(char *fb_addr);
+
+extern void ramfb_matrix(char *fb_addr);
+
+extern void ramfb_set_pixel(uint32_t x, uint32_t y, uint8_t r, uint8_t g, uint8_t b, char *fb);
 
 void serror_current_el_spx_handler(void);
 

@@ -10,14 +10,14 @@ use core::{arch::asm, ffi::{c_char, CStr}};
 
 use drivers::uart::UartWriter;
 
-use crate::{bootscreen::print_bootscreen, drivers::graphics::ramfb::setup_ramfb, exceptions::set_exception_vectors, memory::allocator::{alloc_ffi::{kmalloc, kmalloc_aligned}, init_heap}};
+use crate::{bootscreen::print_bootscreen, exceptions::set_exception_vectors, memory::allocator::{alloc_ffi::kmalloc_aligned, init_heap}, mvulkan::MVulkanGPUDriver};
 
 // C functions
 unsafe extern "C" {
     fn pci_enable_device_c(base: u64) -> bool;
     fn mmu_init();
-    fn c_setup_ramfb(fb_addr: *mut c_char, width: u32, height: u32);
-    fn ramfb_clear(color: u8, fb_addr: *mut c_char);
+    fn ramfb_gradient(fb_addr: *mut c_char);
+    fn ramfb_matrix(fb_addr: *mut c_char);
 }
 
 // Assembly functions 
@@ -28,12 +28,13 @@ unsafe extern "C" {
 }
 
 // Global constants
-pub const SCREENWIDTH: u32 = 640;
-pub const SCREENHEIGHT: u32 = 480;
+pub const SCREENWIDTH: u32 = 1280;
+pub const SCREENHEIGHT: u32 = 720;
 pub const BPP: u32 = 4;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
+    let mut error_count: u32 = 0;
     print_bootscreen();
     serial_println!("\x1B[1;32m[  ☦️INFO   ] Hello World!\x1B[0m");
     serial_println!("\x1B[1;32m[  ☦️INFO   ] MVOS aarch64 version 0.0.2\x1B[0m");
@@ -47,15 +48,21 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
     serial_println!("[ ☦️MEMORY  ] Initializing MMU...");
     unsafe { mmu_init(); }
 
-    serial_println!("[ ☦️SYSTEM  ] Allocating Ramfb framebuffer...");
-    let fb_addr = kmalloc_aligned((BPP*SCREENWIDTH*SCREENHEIGHT) as usize, 4096);
+    let mut RAMFB_DEVICE = drivers::graphics::ramfb::RamFBDriver::new();
 
     serial_println!("[  DRIVERS  ] Enabling Ramfb device...");
-    unsafe { c_setup_ramfb(fb_addr, SCREENWIDTH, SCREENHEIGHT);}
 
-    unsafe { ramfb_clear(0xff, fb_addr) };
+    match RAMFB_DEVICE.setup() {
+        Ok(()) => {},
+        Err(e) => { error_count += 1; serial_println!("[  DRIVERS  ]\x1b[0;31m RamFB {}\x1b[0m", e) } 
+    };
 
-    //setup_ramfb(fb_addr as *mut u64, SCREENWIDTH, SCREENHEIGHT);
+    match RAMFB_DEVICE.bootscreen() {
+        Ok(()) => {},
+        Err(e) => { error_count += 1; serial_println!("[  DRIVERS  ]\x1b[0;31m RamFB {}\x1b[0m", e) } 
+    };
+    
+    RAMFB_DEVICE.draw_rect(50, 250, 40, 140, 201, 143, 48);
 
     // let virtio_gpu_base = drivers::pci::find_pci_device(0x1af4, 0x1050);
 
@@ -66,7 +73,11 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
     //     serial_println!("[  DRIVERS  ] Enabling VirtIO GPU device... {}\x1b[0m", {if virtio_gpu_enabled {"\x1b[0;32mSUCCESS"} else {"\x1b[0;31mFAILED"}});
     // }
 
-    serial_println!("[ ☦️SYSTEM  ]\x1b[0;32m All processes done.\x1b[0m");
+    if error_count == 0 { 
+        serial_println!("[ ☦️SYSTEM  ]\x1b[0;32m All processes succeded.\x1b[0m");
+    } else {
+        serial_println!("[ ☦️SYSTEM  ]\x1b[0;31m All processes done ({} failed).\x1b[0m", error_count);
+    }
 
     loop {}
 }
@@ -91,3 +102,4 @@ pub mod exceptions;
 pub mod memory;
 pub mod bindings;
 pub mod bootscreen;
+pub mod mvulkan;

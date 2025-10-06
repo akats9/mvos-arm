@@ -1,166 +1,65 @@
-use core::{
-    ffi::{CStr, FromBytesUntilNulError}, mem, num, ptr::addr_of, slice::memchr
-};
+use core::{ffi::c_char, ptr::null_mut};
+use crate::{bootscreen::bootscreen_visual, memory::allocator::alloc_ffi::kmalloc_aligned, mvulkan::MVulkanGPUDriver, serial_println, BPP, SCREENHEIGHT, SCREENWIDTH};
 
-use crate::serial_println;
-
-#[repr(C, align(8))]
-#[derive(Debug)]
-pub struct FWCfgFile {
-    size: u32,
-    select: u16,
-    reserved: u16,
-    name: [u8; 56],
+unsafe extern "C" {
+    fn ramfb_clear(color: u8, fb_addr: *mut c_char);
+    fn ramfb_set_pixel(x: u32, y: u32, r: u8, g: u8, b: u8, fb: *mut c_char);
+    fn c_setup_ramfb(fb_addr: *mut c_char, width: u32, height: u32) -> i32;
+    fn ramfb_draw_rect(minx: u32, maxx: u32, miny: u32, maxy: u32, r: u8, g: u8, b: u8, fb_addr: *mut c_char);
 }
 
-impl FWCfgFile {
-    fn zero() -> Self {
-        serial_println!("[   RAMFB   ] \x1b[0;33mDebug: Entered FWCfgFile::zero() constuctor.\x1b[0m");
-        let mut zero = Self {
-            size: 1_u32,
-            select: 1_u16,
-            reserved: 1_u16,
-            name: [1_u8; 56],
+/// RamFB device driver that implements MVulkan API.
+/// Also includes special functions that are not MVulkan-related.
+pub struct RamFBDriver {
+    fb_addr: *mut c_char,
+}
+
+impl RamFBDriver {
+    pub fn new() -> Self {
+        Self {
+            fb_addr: null_mut(),
+        }
+    }
+
+    pub fn bootscreen(&mut self) -> Result<(), &'static str>{
+        if self.fb_addr == null_mut() {
+            return Err("Error: attempted to display bootscreen before RamFB framebuffer allocation.");
+        }
+        bootscreen_visual(self.fb_addr);
+        Ok(())
+    }
+}
+
+impl MVulkanGPUDriver for RamFBDriver {
+    fn setup(&mut self) -> Result<(), &'static str> {
+        serial_println!("[ ☦️SYSTEM  ] Allocating Ramfb framebuffer...");
+        let fb_addr = kmalloc_aligned((BPP*SCREENWIDTH*SCREENHEIGHT) as usize, 4096);
+        self.fb_addr = fb_addr;
+        unsafe { 
+            let res = c_setup_ramfb(self.fb_addr, SCREENWIDTH, SCREENHEIGHT); 
+            if res != 0 {
+                return Err("Error: failed to initialize RamFB device (device not present).");
+            } else {
+                return Ok(());
+            }
         };
-        serial_println!("[   RAMFB   ] \x1b[0;33mDebug: Declared 1 FWCfgFile struct in constructor.\x1b[0m");
-        zero
-    }
-}
-
-#[repr(C, packed)]
-#[derive(Debug)]
-pub struct FWCfgDmaAccess {
-    control: u32,
-    len: u32,
-    addr: u64,
-}
-
-#[repr(C, packed)]
-pub struct RamFBCfg {
-    addr: u64,
-    fmt: u32,
-    flags: u32,
-    width: u32,
-    height: u32,
-    st: u32,
-}
-
-const QEMU_CFG_DMA_CTL_ERROR:  u32 = 0x01;
-const QEMU_CFG_DMA_CTL_READ:   u32 = 0x02;
-const QEMU_CFG_DMA_CTL_SELECT: u32 = 0x08;
-const QEMU_CFG_DMA_CTL_WRITE:  u32 = 0x10;
-
-unsafe fn qemu_dma_transfer(control: u32, len: u32, addr: u64) {
-
-    serial_println!("[   RAMFB   ] \x1b[0;33mDebug: Entered qemu_dma_transfer()\x1b[0m");
-    
-    //Address of the DMA register on the aarch64 virt board
-    let fw_cfg_dma: *mut u64 = 0x9020010 as *mut u64;
-
-    serial_println!("[   RAMFB   ]\x1b[0;33m Debug: declared fw_cfg_dma pointer with address 0x{:x}\x1b[0m", fw_cfg_dma as u64);
-
-    let dma = FWCfgDmaAccess {
-        control: control.to_be(),
-        len: len.to_be(),
-        addr: addr.to_be(),
-    };
-
-    serial_println!("[   RAMFB   ] \x1b[0;33mDebug: declared dma struct variable: {:?}\x1b[0m", dma);
-
-    unsafe {
-        fw_cfg_dma.write_volatile((addr_of!(dma) as u64).to_be());
     }
 
-    serial_println!("[   RAMFB   ] \x1b[0;33mDebug: DMA struct written; waiting.\x1b[0m");
-
-    while (dma.control & !QEMU_CFG_DMA_CTL_ERROR) != 0 {}
-
-    serial_println!("[   RAMFB   ] \x1b[0;33mDebug: loop exited; checking error bit.\x1b[0m");
-
-    if (dma.control & QEMU_CFG_DMA_CTL_ERROR) == 1 {
-        serial_println!("[   RAMFB   ] \x1B[1;31mERROR: An error occured in qemu_dma_transfer\x1B[0m");
-    }
-
-    serial_println!("[   RAMFB   ] \x1b[0;33mDebug: Error bit ok; returning.\x1b[0m");
-}
-
-pub fn setup_ramfb(fb_addr: *mut u64, width: u32, height: u32) {
-    let mut num_entries: u32 = 0xFFFFFFFF;
-    let fw_cfg_file_directory = 0x19;
-
-    serial_println!("[   RAMFB   ] \x1b[0;33mDebug: Setup started.\x1b[0m");
-
-    unsafe {
-        qemu_dma_transfer((fw_cfg_file_directory << 16 | QEMU_CFG_DMA_CTL_SELECT | QEMU_CFG_DMA_CTL_READ) as u32, mem::size_of::<u32>() as u32, addr_of!(num_entries) as u64);
-    }
-
-    serial_println!("[   RAMFB   ] \x1B[0;33mDebug: first dma transfer done.\x1B[0m");
-
-    //QEMU DMA is BE so need to byte swap arguments and results on LE
-    num_entries = num_entries.to_be();
-
-    serial_println!("[   RAMFB   ] \x1b[0;33mDebug: Found QEMU entries: {}\x1b[0m", num_entries);
-
-    let ramfb = FWCfgFile::zero(); 
-
-    serial_println!("[   RAMFB   ] \x1b[0;33mDebug: Declared ramfb struct variable: {:?}\x1b[0m", ramfb);
-
-    serial_println!("[   RAMFB   ] \x1b[0;33mDebug: Entering 0..num_entries for loop.\x1b[0m");
-
-    for _ in 0..num_entries {
+    fn clear(&mut self, color: u8) {
         unsafe {
-            qemu_dma_transfer(QEMU_CFG_DMA_CTL_READ, mem::size_of::<FWCfgFile>() as u32, addr_of!(ramfb) as u64);
+            ramfb_clear(color, self.fb_addr);
         }
+    }
 
-        serial_println!("[   RAMFB   ] \x1b[0;33mDebug: Transfer done.\x1b[0m");
-
-        
-        if compare_etc_ramfb(&ramfb.name) {
-            serial_println!("[   RAMFB   ] \x1b[0;32mDebug: Found entry \"etc/ramfb\", breaking from loop.\x1b[0m");
-            break;
+    fn draw_rect(&mut self, minx: u32, maxx: u32, miny: u32, maxy: u32, r: u8, g: u8, b: u8) {
+        unsafe {
+            ramfb_draw_rect(minx, maxx, miny, maxy, r, g, b, self.fb_addr);
         }
-
-        //serial_println!("[   RAMFB   ] \x1b[0;33mDebug: Entry {:?} did not match.\x1b[0m", &ramfb.name.to_ascii_lowercase());
     }
 
-    serial_println!("[   RAMFB   ] \x1B[0;33mDebug: dma transfer loop done.\x1B[0m");
-
-    //See fourcc : https://github.com/qemu/qemu/blob/54294b23e16dfaeb72e0ffa8b9f13ca8129edfce/include/standard-headers/drm/drm_fourcc.h#L188
-
-    //serial_println!("[   RAMFB   ] {:x}", ramfb.select.to_be());
-
-    let pixel_format = ('R' as u32) | (('G' as u32) << 8) | (('2' as u32) << 16) | (('4' as u32) << 24);
-
-    //Stride 0 means QEMU calculates from bpp_of_format*width: https://github.com/qemu/qemu/blob/54294b23e16dfaeb72e0ffa8b9f13ca8129edfce/hw/display/ramfb.c#L60
-
-    //serial_println!("[   RAMFB   ] Placing FB at 0x{:x}", fb_addr as u64); 
-
-    let bpp = 4;
-
-    let ramfb_cfg = RamFBCfg {
-        addr: (fb_addr as u64).to_be(),
-        fmt: (pixel_format).to_be(),
-        flags: (0_u32).to_be(),
-        width: (width as u32).to_be(),
-        height: (height as u32).to_be(),
-        st: (bpp*width as u32).to_be(),
-    };
-
-    unsafe {
-        qemu_dma_transfer((ramfb.select.to_be() as u32) << 16 | QEMU_CFG_DMA_CTL_SELECT | QEMU_CFG_DMA_CTL_WRITE, mem::size_of::<RamFBCfg>() as u32, addr_of!(ramfb_cfg) as u64);
+    fn set_pixel(&mut self, x: u32, y: u32, r: u8, g: u8, b: u8) {
+        unsafe {
+            ramfb_set_pixel(x, y, r, g, b, self.fb_addr);
+        }
     }
-
-    //serial_println!("[   RAMFB   ] \x1B[0;33mDebug: final dma transfer done.\x1B[0m");
-}
-
-fn compare_etc_ramfb(bytes: &[u8]) -> bool {
-    let ramfb_key = b"etc/ramfb";
-    let null = match memchr::memchr(0, bytes) { Some(n) => n, None => {serial_println!("[   RAMFB   ] \x1b[1;33mWARNING: compare_etc_ramfb(): input buffer {:?} is not null terminated.", bytes); 0}};
-    let until_null_buffer = &bytes[..null];
-
-    for b in until_null_buffer.iter().zip(ramfb_key) {
-        if b.0 != b.1 { return false; }
-    }
-
-    true
 }
