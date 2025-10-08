@@ -1,4 +1,5 @@
 #include "ramfb.h"
+#include <font8x8/font8x8_basic.h>
 
 typedef struct FWCfgFile {
     uint32_t size;
@@ -140,6 +141,7 @@ void ramfb_clear(u8 color, char* fb_addr) {
 }
 
 void ramfb_set_pixel(unsigned int x, unsigned int y, u8 r, u8 g, u8 b, char* fb) {
+    if (x > SCREENWIDTH || y > SCREENHEIGHT) return;
     int offset = (y * SCREENWIDTH + x) * BPP;  // 4 bytes per pixel
     fb[offset + 0] = b;  // Blue
     fb[offset + 1] = g;  // Green
@@ -169,9 +171,27 @@ void ramfb_matrix(char* fb_addr) {
 }
 
 void ramfb_draw_rect(u32 minx, u32 maxx, u32 miny, u32 maxy, u8 r, u8 g, u8 b, char* fb_addr) {
+    if (maxx > SCREENWIDTH || maxy > SCREENHEIGHT || minx > SCREENWIDTH || miny > SCREENHEIGHT || minx > maxx || miny > maxy) return;
     for (u32 y = miny; y < maxy; y++) {
         for (u32 x = minx; x < maxx; x++) {
             ramfb_set_pixel(x,y,r,g,b,fb_addr);
+        }
+    }
+}
+
+void ramfb_draw_letter(char utf8_offset, u8 r, u8 g, u8 b, u32 x, u32 y, char* fb_addr, u8 scale) {
+    if (x+(7*scale)+scale > SCREENWIDTH|| y+(7*scale)+scale > SCREENHEIGHT) return;
+    if (utf8_offset > 0x007f) return;
+    char* row = font8x8_basic[utf8_offset];
+    for (u32 Y = 0; Y < 8; Y++) {
+        for (u32 X = 0; X < 8; X++) {
+            bool bit = (row[Y] >> X) & 1;
+            if (bit) {
+                // 2x2 for readability
+                ramfb_draw_rect(x+X*scale, x+(X*scale)+scale, y+Y*scale, y+(Y*scale)+scale, r,g,b, fb_addr);
+
+                //ramfb_set_pixel(x+X, y+Y, r,g,b, fb_addr);
+            }
         }
     }
 }

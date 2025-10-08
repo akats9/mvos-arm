@@ -4,13 +4,13 @@
 #![feature(asm_const)]
 #![feature(asm_sym)]
 
-use core::{arch::asm, ffi::{c_char, CStr}};
+use core::{arch::asm, ffi::{c_char, CStr}, ptr::null_mut};
 
-//extern crate alloc;
+extern crate alloc;
 
 use drivers::uart::UartWriter;
 
-use crate::{bootscreen::print_bootscreen, exceptions::set_exception_vectors, memory::allocator::{alloc_ffi::kmalloc_aligned, init_heap}, mvulkan::MVulkanGPUDriver};
+use crate::{bootscreen::print_bootscreen, exceptions::set_exception_vectors, memory::allocator::{alloc_ffi::kmalloc_aligned, init_heap}, mvulkan::{console, MVulkanGPUDriver}};
 
 // C functions
 unsafe extern "C" {
@@ -20,49 +20,60 @@ unsafe extern "C" {
     fn ramfb_matrix(fb_addr: *mut c_char);
 }
 
-// Assembly functions 
-unsafe extern "C" {
-    fn set_tcr();
-    fn set_mair();
-    fn set_paging();
-}
-
 // Global constants
 pub const SCREENWIDTH: u32 = 1280;
 pub const SCREENHEIGHT: u32 = 720;
 pub const BPP: u32 = 4;
+pub const SCALE: u8 = 1;
+
+// Hardware
+static mut GPU_DEVICE: Option<*mut dyn MVulkanGPUDriver> = None;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
     let mut error_count: u32 = 0;
     print_bootscreen();
     serial_println!("\x1B[1;32m[  ☦️INFO   ] Hello World!\x1B[0m");
-    serial_println!("\x1B[1;32m[  ☦️INFO   ] MVOS aarch64 version 0.0.2\x1B[0m");
+    serial_println!("\x1B[1;32m[  ☦️INFO   ] MVOS aarch64 version 0.0.3\x1B[0m");
 
+    
     serial_println!("[ ☦️MEMORY  ] Initializing heap...");
     init_heap();
-
+    
     serial_println!("[ ☦️SYSTEM  ] Installing exception handlers... ");
     unsafe {set_exception_vectors();}
-
+    
     serial_println!("[ ☦️MEMORY  ] Initializing MMU...");
     unsafe { mmu_init(); }
-
+    
     let mut RAMFB_DEVICE = drivers::graphics::ramfb::RamFBDriver::new();
-
+    
+    unsafe {
+        GPU_DEVICE = Some(&mut RAMFB_DEVICE as *mut dyn MVulkanGPUDriver);
+    }
+    
     serial_println!("[  DRIVERS  ] Enabling Ramfb device...");
-
+    
     match RAMFB_DEVICE.setup() {
         Ok(()) => {},
         Err(e) => { error_count += 1; serial_println!("[  DRIVERS  ]\x1b[0;31m RamFB {}\x1b[0m", e) } 
     };
-
+    
     match RAMFB_DEVICE.bootscreen() {
         Ok(()) => {},
         Err(e) => { error_count += 1; serial_println!("[  DRIVERS  ]\x1b[0;31m RamFB {}\x1b[0m", e) } 
     };
     
-    RAMFB_DEVICE.draw_rect(50, 250, 40, 140, 201, 143, 48);
+    // RAMFB_DEVICE.draw_char(0x56, 0xff, 0xff, 0xff, 33,0, SCALE);
+    // RAMFB_DEVICE.draw_char(0x4d, 0xff, 0xff, 0xff, 0,0, SCALE);
+    // RAMFB_DEVICE.draw_char(0x4f, 0xff, 0xff, 0xff, 64,0, SCALE);
+    // RAMFB_DEVICE.draw_char(0x53, 0xff, 0xff, 0xff, 97,0, SCALE);
+    console_println!("[   INFO   ] Hello World!",, r:0, g:0xff, b:0);
+    console_println!("[   INFO   ] MVOS aarch64 version 0.0.3",, r:0, g:0xff, b:0);
+
+    console_println!("Hello, World!", ,r: 255, g: 255, b: 255); // hell
+    
+    // RAMFB_DEVICE.draw_rect(50, 250, 40, 140, 201, 143, 48);
 
     // let virtio_gpu_base = drivers::pci::find_pci_device(0x1af4, 0x1050);
 

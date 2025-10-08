@@ -3,6 +3,8 @@
 
 #define BPP 4
 
+#define SCALE 1
+
 #define SCREENHEIGHT 720
 
 #define SCREENWIDTH 1280
@@ -91,6 +93,15 @@ uint64_t pci_get_bar(uint64_t base, uint8_t offset, uint8_t index);
 
 extern void ramfb_clear(uint8_t color, char *fb_addr);
 
+extern void ramfb_draw_letter(char utf8_offset,
+                              uint8_t r,
+                              uint8_t g,
+                              uint8_t b,
+                              uint32_t x,
+                              uint32_t y,
+                              char *fb_addr,
+                              uint8_t scale);
+
 extern void ramfb_draw_rect(uint32_t minx,
                             uint32_t maxx,
                             uint32_t miny,
@@ -107,12 +118,6 @@ extern void ramfb_matrix(char *fb_addr);
 extern void ramfb_set_pixel(uint32_t x, uint32_t y, uint8_t r, uint8_t g, uint8_t b, char *fb);
 
 void serror_current_el_spx_handler(void);
-
-extern void set_mair(void);
-
-extern void set_paging(void);
-
-extern void set_tcr(void);
 
 void sync_current_el_spx_handler(struct InterruptFrame *frame);
 
