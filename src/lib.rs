@@ -68,9 +68,10 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
     console_println!("[   INFO   ] MVOS aarch64 version 0.0.3", ; r:0, g:0xff, b:0);
 
     console_println!("Γεια σου Κοσμε!", ; r: 255, g: 255, b: 255); // hell
-    
-    // RAMFB_DEVICE.draw_rect(50, 250, 40, 140, 201, 143, 48);
 
+    console_print!("Color test" ; color: 0xffaa55);
+    console_println!(" Same line test" ; color: 0x55aaff);
+    
     // let virtio_gpu_base = drivers::pci::find_pci_device(0x1af4, 0x1050);
 
     // serial_println!("[  DRIVERS  ] Finding VirtIO GPU device... {}\x1b[0m", {if virtio_gpu_base == 0x0 {"\x1b[0;31mFAILED"} else {"\x1b[0;32mSUCCESS"}});
