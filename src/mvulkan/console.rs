@@ -17,14 +17,14 @@ pub fn newline() {
 #[macro_export]
 #[macro_use]
 macro_rules! console_println {
-    ($fmt:expr, $($arg:expr),*, r: $r:expr, g: $g:expr, b: $b:expr) => {
+    ($fmt:expr, $($arg:expr),* ; r: $r:expr, g: $g:expr, b: $b:expr) => {
         let formatted = ::alloc::format!($fmt, $($arg),*);
 
         for c in formatted.chars() {
             if c == '\n' {
                 $crate::mvulkan::console::newline();
             } else {
-                let utf8 = c as u32 as c_char;
+                let utf8 = c as u32 as usize;
                 unsafe {
                     if $crate::mvulkan::console::CURSOR.1 > SCREENWIDTH - 8*SCALE as u32 {
                         $crate::mvulkan::console::newline();

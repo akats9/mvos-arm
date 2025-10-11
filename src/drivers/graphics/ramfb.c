@@ -1,5 +1,5 @@
 #include "ramfb.h"
-#include <font8x8/font8x8_basic.h>
+#include <font8x8/font8x8.h>
 
 typedef struct FWCfgFile {
     uint32_t size;
@@ -179,10 +179,20 @@ void ramfb_draw_rect(u32 minx, u32 maxx, u32 miny, u32 maxy, u8 r, u8 g, u8 b, c
     }
 }
 
-void ramfb_draw_letter(char utf8_offset, u8 r, u8 g, u8 b, u32 x, u32 y, char* fb_addr, u8 scale) {
+void ramfb_draw_letter(usize utf8_offset, u8 r, u8 g, u8 b, u32 x, u32 y, char* fb_addr, u8 scale) {
     if (x+(7*scale)+scale > SCREENWIDTH|| y+(7*scale)+scale > SCREENHEIGHT) return;
-    if (utf8_offset > 0x007f) return;
-    char* row = font8x8_basic[utf8_offset];
+    // if (utf8_offset > 0x007f) return;
+    char* row = (utf8_offset <= 0x007f) ? font8x8_basic[utf8_offset] :
+                (utf8_offset <= 0x009f) ? font8x8_control[utf8_offset - 0x0080] :
+                (utf8_offset <= 0x00ff) ? font8x8_ext_latin[utf8_offset - 0x00a0] :
+                (utf8_offset <= 0x038f) ? font8x8_basic[0] :
+                (utf8_offset <= 0x03c9) ? font8x8_greek[utf8_offset - 0x0390] :
+                (utf8_offset <= 0x24ff) ? font8x8_basic[0]: 
+                (utf8_offset <= 0x257f) ? font8x8_box[utf8_offset - 0x2500] :
+                (utf8_offset <= 0x259f) ? font8x8_block[utf8_offset - 0x2580] :
+                (utf8_offset <= 0x3040) ? font8x8_basic[0] :
+                (utf8_offset <= 0x309f) ? font8x8_hiragana[utf8_offset - 0x3040] :
+                font8x8_basic[0];
     for (u32 Y = 0; Y < 8; Y++) {
         for (u32 X = 0; X < 8; X++) {
             bool bit = (row[Y] >> X) & 1;

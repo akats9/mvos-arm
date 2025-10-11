@@ -1,4 +1,3 @@
 * Add exception and interrupt handling
 * Add processes and threads
 * Add GRUB support
-* Add support for multiple UTF8 languages

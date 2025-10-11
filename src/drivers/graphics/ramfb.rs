@@ -6,7 +6,7 @@ unsafe extern "C" {
     fn ramfb_set_pixel(x: u32, y: u32, r: u8, g: u8, b: u8, fb: *mut c_char);
     fn c_setup_ramfb(fb_addr: *mut c_char, width: u32, height: u32) -> i32;
     fn ramfb_draw_rect(minx: u32, maxx: u32, miny: u32, maxy: u32, r: u8, g: u8, b: u8, fb_addr: *mut c_char);
-    fn ramfb_draw_letter(utf8_offset: c_char, r: u8, g: u8, b: u8, x: u32, y: u32, fb_addr: *mut c_char, scale: u8);
+    fn ramfb_draw_letter(utf8_offset: usize, r: u8, g: u8, b: u8, x: u32, y: u32, fb_addr: *mut c_char, scale: u8);
 }
 
 /// RamFB device driver that implements MVulkan API.
@@ -64,7 +64,7 @@ impl MVulkanGPUDriver for RamFBDriver {
         }
     }
 
-    fn draw_char(&mut self, utf8: c_char, r: u8, g: u8, b: u8, x: u32, y: u32, scale: u8) {
+    fn draw_char(&mut self, utf8: usize, r: u8, g: u8, b: u8, x: u32, y: u32, scale: u8) {
         unsafe {
             ramfb_draw_letter(utf8, r, g, b, x, y, self.fb_addr, scale);
         }

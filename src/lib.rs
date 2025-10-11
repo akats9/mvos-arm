@@ -64,14 +64,10 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
         Err(e) => { error_count += 1; serial_println!("[  DRIVERS  ]\x1b[0;31m RamFB {}\x1b[0m", e) } 
     };
     
-    // RAMFB_DEVICE.draw_char(0x56, 0xff, 0xff, 0xff, 33,0, SCALE);
-    // RAMFB_DEVICE.draw_char(0x4d, 0xff, 0xff, 0xff, 0,0, SCALE);
-    // RAMFB_DEVICE.draw_char(0x4f, 0xff, 0xff, 0xff, 64,0, SCALE);
-    // RAMFB_DEVICE.draw_char(0x53, 0xff, 0xff, 0xff, 97,0, SCALE);
-    console_println!("[   INFO   ] Hello World!",, r:0, g:0xff, b:0);
-    console_println!("[   INFO   ] MVOS aarch64 version 0.0.3",, r:0, g:0xff, b:0);
+    console_println!("[   INFO   ] Hello World!", ; r:0, g:0xff, b:0);
+    console_println!("[   INFO   ] MVOS aarch64 version 0.0.3", ; r:0, g:0xff, b:0);
 
-    console_println!("Hello, World!", ,r: 255, g: 255, b: 255); // hell
+    console_println!("Γεια σου Κοσμε!", ; r: 255, g: 255, b: 255); // hell
     
     // RAMFB_DEVICE.draw_rect(50, 250, 40, 140, 201, 143, 48);
 
@@ -86,8 +82,10 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
 
     if error_count == 0 { 
         serial_println!("[ ☦️SYSTEM  ]\x1b[0;32m All processes succeded.\x1b[0m");
+        console_println!("[  SYSTEM  ] All processes succeded.", ; r: 0, g: 255, b: 0);
     } else {
         serial_println!("[ ☦️SYSTEM  ]\x1b[0;31m All processes done ({} failed).\x1b[0m", error_count);
+        console_println!("[  SYSTEM  ] All processes done ({} failed).", error_count ; r: 200, g: 0, b: 0);
     }
 
     loop {}

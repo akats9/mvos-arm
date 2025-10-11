@@ -93,7 +93,7 @@ uint64_t pci_get_bar(uint64_t base, uint8_t offset, uint8_t index);
 
 extern void ramfb_clear(uint8_t color, char *fb_addr);
 
-extern void ramfb_draw_letter(char utf8_offset,
+extern void ramfb_draw_letter(size_t utf8_offset,
                               uint8_t r,
                               uint8_t g,
                               uint8_t b,

@@ -36,7 +36,7 @@ pub trait MVulkanGPUDriver {
     fn draw_rect(&mut self, minx: u32, maxx: u32, miny: u32, maxy: u32, r: u8, g: u8, b: u8);
 
     /// Print a UTF-8 character to the screen with given coordinates, scaling and color
-    fn draw_char(&mut self, utf8: c_char, r: u8, g: u8, b: u8, x: u32, y: u32, scale: u8);
+    fn draw_char(&mut self, utf8: usize, r: u8, g: u8, b: u8, x: u32, y: u32, scale: u8);
 }
 
 pub mod console;
