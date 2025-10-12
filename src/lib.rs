@@ -9,8 +9,9 @@ use core::{arch::asm, ffi::{c_char, CStr}, ptr::null_mut};
 extern crate alloc;
 
 use drivers::uart::UartWriter;
+use alloc::vec::Vec;
 
-use crate::{bootscreen::print_bootscreen, exceptions::set_exception_vectors, memory::allocator::{alloc_ffi::kmalloc_aligned, init_heap}, mvulkan::{console, MVulkanGPUDriver}};
+use crate::{bootscreen::print_bootscreen, exceptions::set_exception_vectors, memory::allocator::{alloc_ffi::kmalloc_aligned, init_heap}, mvulkan::{console, MVulkanGPUDriver}, random::random_bible_line};
 
 // C functions
 unsafe extern "C" {
@@ -28,6 +29,8 @@ pub const SCALE: u8 = 1;
 
 // Hardware
 static mut GPU_DEVICE: Option<*mut dyn MVulkanGPUDriver> = None;
+
+const BIBLE: &str = include_str!("../Bible.TXT");
 
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
@@ -71,6 +74,8 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
 
     console_print!("Color test" ; color: 0xffaa55);
     console_println!(" Same line test" ; color: 0x55aaff);
+
+    print_bible();
     
     // let virtio_gpu_base = drivers::pci::find_pci_device(0x1af4, 0x1050);
 
@@ -106,6 +111,18 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn c_panic(msg: *const c_char) { panic!("Panic caused in C source: {}.", CStr::from_ptr(msg).to_str().unwrap()); }
 
+pub fn print_bible() {
+    let lines: Vec<&str> = BIBLE.lines().collect();
+    for line in lines {
+        console_println!("{}", line ; color: 0xffaa55);
+        for _ in (0..2_usize.pow(28)) {
+            unsafe {
+                asm!("nop");
+            }
+        }
+    }
+}
+
 // pub mod framebuffer;
 pub mod drivers;
 pub mod exceptions;
@@ -113,3 +130,4 @@ pub mod memory;
 pub mod bindings;
 pub mod bootscreen;
 pub mod mvulkan;
+pub mod random;
