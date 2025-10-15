@@ -1,4 +1,4 @@
-* Add exception and interrupt handling
+* Fix timer
 * Add processes and threads
 * Add GRUB support
 * Add testing framework

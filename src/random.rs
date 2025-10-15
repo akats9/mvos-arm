@@ -14,6 +14,7 @@ pub fn random(seed: usize) -> usize {
     (a * seed + c) % m
 }
 
+/// Print a random line from the Bible to bless the system
 pub fn random_bible_line(seed: usize) -> Option<&'static str> {
     let lines: Vec<&str> = BIBLE.lines().collect();
 

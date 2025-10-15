@@ -6,7 +6,7 @@ debug.dtb
 monitor.log
 /build
 .vscode
-kernel64.elf
+kernel64.img
 kernel64.bin
 disassembly.txt
 toolchain

@@ -1,6 +1,6 @@
 use core::{arch::asm, panic};
 
-use crate::{dbg, serial_println};
+use crate::{dbg, exceptions::irq::{tick_timer, GICC}, memory::mmio::{mmio_read32, mmio_write32}, serial_println};
 
 pub unsafe fn set_exception_vectors() {
     unsafe extern "C" { static exception_vectors: [u8; 0]; }
@@ -243,15 +243,91 @@ fn handle_page_fault(fault_addr: u64, fault_pc: u64, access: bool) {
 }
 
 fn handle_instruction_abort(fault_addr: u64) {
-    unimplemented!()
+    panic!("Fatal: instruction abort occured at 0x{:x}", fault_addr);
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn interrupt_handler() {
-    unimplemented!()
+    let irq_id = mmio_read32(GICC as u64 + 0xc);
+
+    match irq_id {
+        30 => {tick_timer();}
+        _ => {
+            dbg!("unknown interrupt");
+            mmio_write32(GICC as u64 + 0x10, irq_id);
+        }
+    }
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn serror_current_el_spx_handler() {
-    unimplemented!()
+pub unsafe extern "C" fn serror_current_el_spx_handler() {
+    let mut esr: usize;
+    let mut elr: usize; 
+    let mut far: usize;
+    let mut gprs: [usize; 31] = [0; 31];
+    let mut sp: usize;
+    let mut sctlr: usize;
+    let mut ttbr0: usize;
+    let mut ttbr1: usize;
+    let mut tcr: usize;
+
+    asm!("mrs {}, ESR_EL1", out(reg) esr);
+    asm!("mrs {}, ELR_EL1", out(reg) elr);
+    asm!("mrs {}, FAR_EL1", out(reg) far);
+    asm!("mov {}, sp", out(reg) sp);
+    asm!("mrs {}, SCTLR_EL1", out(reg) sctlr);
+    asm!("mrs {}, TTBR0_EL1", out(reg) ttbr0);
+    asm!("mrs {}, TTBR1_EL1", out(reg) ttbr1);
+    asm!("mrs {}, TCR_EL1", out(reg) tcr);
+    asm!("mov {}, x0", out(reg) gprs[0]);
+    asm!("mov {}, x1", out(reg) gprs[1]);
+    asm!("mov {}, x2", out(reg) gprs[2]);
+    asm!("mov {}, x3", out(reg) gprs[3]);
+    asm!("mov {}, x4", out(reg) gprs[4]);
+    asm!("mov {}, x5", out(reg) gprs[5]);
+    asm!("mov {}, x6", out(reg) gprs[6]);
+    asm!("mov {}, x7", out(reg) gprs[7]);
+    asm!("mov {}, x8", out(reg) gprs[8]);
+    asm!("mov {}, x9", out(reg) gprs[9]);
+    asm!("mov {}, x10", out(reg) gprs[10]);
+    asm!("mov {}, x11", out(reg) gprs[11]);
+    asm!("mov {}, x12", out(reg) gprs[12]);
+    asm!("mov {}, x13", out(reg) gprs[13]);
+    asm!("mov {}, x14", out(reg) gprs[14]);
+    asm!("mov {}, x15", out(reg) gprs[15]);
+    asm!("mov {}, x16", out(reg) gprs[16]);
+    asm!("mov {}, x17", out(reg) gprs[17]);
+    asm!("mov {}, x18", out(reg) gprs[18]);
+    asm!("mov {}, x19", out(reg) gprs[19]);
+    asm!("mov {}, x20", out(reg) gprs[20]);
+    asm!("mov {}, x21", out(reg) gprs[21]);
+    asm!("mov {}, x22", out(reg) gprs[22]);
+    asm!("mov {}, x23", out(reg) gprs[23]);
+    asm!("mov {}, x24", out(reg) gprs[24]);
+    asm!("mov {}, x25", out(reg) gprs[25]);
+    asm!("mov {}, x26", out(reg) gprs[26]);
+    asm!("mov {}, x27", out(reg) gprs[27]);
+    asm!("mov {}, x28", out(reg) gprs[28]);
+    asm!("mov {}, x29", out(reg) gprs[29]);
+    asm!("mov {}, x30", out(reg) gprs[30]);
+
+    serial_println!("[ EXCEPTION ] FATAL: SYSTEM ERROR OCCURED");
+    serial_println!("[ EXCEPTION ] REGISTER DUMP:");
+    serial_println!("[ EXCEPTION ]");
+    serial_println!("[ EXCEPTION ] -- SYSTEM REGISTERS --");
+    serial_println!("[ EXCEPTION ] ESR: 0x{:X}, ELR: 0x{:X}, FAR: 0x{:X}", esr, elr, far);
+    serial_println!("[ EXCEPTION ] SCTLR: 0x{:X}", sctlr);
+    serial_println!("[ EXCEPTION ] TTBR0: 0x{:X}, TTBR1: 0x{:X}", ttbr0, ttbr1);
+    serial_println!("[ EXCEPTION ] TCR: 0x{:X}", tcr);
+    serial_println!("[ EXCEPTION ] SP: 0x{:X}", sp);
+    serial_println!("[ EXCEPTION ]");
+    serial_println!("[ EXCEPTION ] -- GENERAL PURPOSE REGISTERS --");
+    for i in 0..31 {
+        serial_println!("[ EXCEPTION ] X{}: 0x{:X}", i, gprs[i]);
+    }
+
+    panic!("Fatal: System Error Occured.");
+
 }
+
+pub mod irq;

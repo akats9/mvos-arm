@@ -219,6 +219,7 @@ void mmu_init() {
 
     for (uint64_t addr = kstart; addr <= kend; addr += GRANULE_2MB) mmu_map_2mb(addr, addr, MAIR_IDX_NORMAL);
     for (uint64_t addr = UART_BASE - 0x1000; addr <= UART_BASE + 0x100000; addr += GRANULE_4KB) mmu_map_4kb(addr, addr, MAIR_IDX_DEVICE, 1);
+    for (uint64_t addr = 0x8000000 - 0x1000; addr <= 0x8000000 + 0x100000; addr += GRANULE_4KB) mmu_map_4kb(addr, addr, MAIR_IDX_DEVICE, 1);
 
     uint64_t mair = (MAIR_DEVICE_nGnRnE << (MAIR_IDX_DEVICE * 8)) | (MAIR_NORMAL_NOCACHE << (MAIR_IDX_NORMAL * 8));
     asm volatile ("msr mair_el1, %0" :: "r"(mair));

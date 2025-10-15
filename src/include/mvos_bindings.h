@@ -3,6 +3,10 @@
 
 #define BPP 4
 
+#define GICC 134283264
+
+#define GICD 134217728
+
 #define SCALE 1
 
 #define SCREENHEIGHT 720

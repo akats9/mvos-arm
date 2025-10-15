@@ -11,7 +11,7 @@ extern crate alloc;
 use drivers::uart::UartWriter;
 use alloc::vec::Vec;
 
-use crate::{bootscreen::print_bootscreen, exceptions::set_exception_vectors, memory::allocator::{alloc_ffi::kmalloc_aligned, init_heap}, mvulkan::{console, MVulkanGPUDriver}, random::random_bible_line};
+use crate::{bootscreen::print_bootscreen, exceptions::{irq::{enable_timer, gic_init}, set_exception_vectors}, memory::allocator::{alloc_ffi::kmalloc_aligned, init_heap}, mvulkan::{console, MVulkanGPUDriver}, random::random_bible_line};
 
 // C functions
 unsafe extern "C" {
@@ -32,6 +32,9 @@ static mut GPU_DEVICE: Option<*mut dyn MVulkanGPUDriver> = None;
 
 const BIBLE: &str = include_str!("../Bible.TXT");
 
+/// Global absolute system timer (seconds)
+static mut TIMER: usize = 0;
+
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
     let mut error_count: u32 = 0;
@@ -48,6 +51,9 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
     
     serial_println!("[ ☦️MEMORY  ] Initializing MMU...");
     unsafe { mmu_init(); }
+    
+    gic_init();
+    enable_timer();
     
     let mut RAMFB_DEVICE = drivers::graphics::ramfb::RamFBDriver::new();
     
@@ -75,7 +81,17 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
     console_print!("Color test" ; color: 0xffaa55);
     console_println!(" Same line test" ; color: 0x55aaff);
 
-    print_bible();
+    for i in 0..50 {
+        let l = match random_bible_line(46748 * i) {
+            Some(l) => l, 
+            None => "--- !!! YOU HAVE REACHED HELL !!! ---",
+        };
+        let color = match l {
+            "--- !!! YOU HAVE REACHED HELL !!! ---" => 0xff0000,
+            _ => 0xffbb44,
+        };
+        console_println!("{}", l ; color: color);
+    }
     
     // let virtio_gpu_base = drivers::pci::find_pci_device(0x1af4, 0x1050);
 
@@ -88,13 +104,28 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
 
     if error_count == 0 { 
         serial_println!("[ ☦️SYSTEM  ]\x1b[0;32m All processes succeded.\x1b[0m");
-        console_println!("[  SYSTEM  ] All processes succeded.", ; r: 0, g: 255, b: 0);
+        unsafe { let timer = TIMER;  console_println!("[  SYSTEM  ] All processes succeded in {}s.", timer ; r: 0, g: 255, b: 0); }
     } else {
         serial_println!("[ ☦️SYSTEM  ]\x1b[0;31m All processes done ({} failed).\x1b[0m", error_count);
-        console_println!("[  SYSTEM  ] All processes done ({} failed).", error_count ; r: 200, g: 0, b: 0);
+        unsafe { let timer = TIMER;  console_println!("[  SYSTEM  ] All processes done in {}s ({} failed).", timer, error_count ; r: 200, g: 0, b: 0); }
     }
 
-    loop {}
+    unsafe { 
+        let mut old_timer = TIMER;
+
+        loop {
+            let timer = TIMER; 
+            if timer != old_timer && TIMER % 2 == 0 {
+                console_print!("{} ", timer ; color: 0xff0000);
+                old_timer += 1;
+            } else if timer != old_timer && TIMER % 2 != 0 {
+                console_print!("{} ", timer ; color: 0x0000ff);
+                old_timer += 1;
+            } else {
+                asm!("nop");
+            }
+        }
+    }
 }
 
 #[panic_handler]
@@ -111,11 +142,12 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn c_panic(msg: *const c_char) { panic!("Panic caused in C source: {}.", CStr::from_ptr(msg).to_str().unwrap()); }
 
+/// Print the whole Bible text to bless the system
 pub fn print_bible() {
     let lines: Vec<&str> = BIBLE.lines().collect();
     for line in lines {
         console_println!("{}", line ; color: 0xffaa55);
-        for _ in (0..2_usize.pow(28)) {
+        for _ in (0..2_usize.pow(24)) {
             unsafe {
                 asm!("nop");
             }
