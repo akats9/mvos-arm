@@ -2,6 +2,7 @@ use core::{ffi::c_char, ptr::null_mut};
 use alloc::vec::Vec;
 
 use crate::{bootscreen::bootscreen_visual, memory::allocator::alloc_ffi::kmalloc_aligned, mvulkan::{MVulkanGPUDriver, MVulkanGeometry}, serial_println, BPP, SCREENHEIGHT, SCREENWIDTH};
+use crate::{min, max};
 
 unsafe extern "C" {
     fn ramfb_clear(color: u8, fb_addr: *mut c_char);
@@ -83,6 +84,7 @@ impl MVulkanGPUDriver for RamFBDriver {
 
 impl MVulkanGeometry for RamFBDriver {
     fn draw_circle(&mut self, Ox: u32, Oy: u32, R: u32, r: u8, g: u8, b: u8) {
+        if Ox < R || Ox + R > SCREENWIDTH || Oy < R || Oy + R > SCREENHEIGHT { return; }
         let mut points: Vec<(u32, u32)> = Vec::new();
         let radius_sq = R.pow(2);
 
@@ -106,6 +108,46 @@ impl MVulkanGeometry for RamFBDriver {
             self.set_pixel(x, y, r, g, b);
         }
     }
+
+    fn draw_triangle(&mut self, x1: u32, y1: u32, x2: u32, y2: u32, x3: u32, y3: u32, r: u8, g: u8, b: u8) {
+        let miny = min!(y1, y2, y3);
+        let maxy = max!(x1, x2, x3);
+
+        for y in miny..=maxy {
+            let mut intersection_x: [i32; 2] = [-1; 2];
+            if y1 <= y && y <= y2 {
+                let x = x1 + (y - y1)*(x2 - x1)/(y2-y1);
+                if intersection_x[0] > -1 { if intersection_x[1] > -1 {return;} else {intersection_x[1] = x as i32;}} else {intersection_x[0] = x as i32;}
+            } else if y2 <= y && y <= y1 {
+                let x = x2 + (y - y2)*(x1 - x2)/(y1-y2);
+                if intersection_x[0] > -1 { if intersection_x[1] > -1 {return;} else {intersection_x[1] = x as i32;}} else {intersection_x[0] = x as i32;}
+            }
+            if y2 <= y && y <= y3 {
+                let x = x2 + (y - y2)*(x3 - x2)/(y3-y2);
+                if intersection_x[0] > -1 { if intersection_x[1] > -1 {return;} else {intersection_x[1] = x as i32;}} else {intersection_x[0] = x as i32;}
+            } else if y3 <= y && y <= y2 {
+                let x = x3 + (y - y3)*(x2 - x3)/(y2-y3);
+                if intersection_x[0] > -1 { if intersection_x[1] > -1 {return;} else {intersection_x[1] = x as i32;}} else {intersection_x[0] = x as i32;}
+            }
+            if y3 <= y && y <= y1 {
+                let x = x3 + (y - y3)*(x1 - x3)/(y1-y3);
+                if intersection_x[0] > -1 { if intersection_x[1] > -1 {return;} else {intersection_x[1] = x as i32;}} else {intersection_x[0] = x as i32;}
+            } else if y1 <= y && y <= y3 {
+                let x = x1 + (y - y1)*(x3 - x1)/(y3-y1);
+                if intersection_x[0] > -1 { if intersection_x[1] > -1 {return;} else {intersection_x[1] = x as i32;}} else {intersection_x[0] = x as i32;}
+            }
+            intersection_x.sort();
+            if intersection_x == [-1; 2] {
+                continue;
+            } else if intersection_x[0] < 0 && intersection_x[1] >= 0 {
+                self.set_pixel(intersection_x[1] as u32, y, r, g, b);
+            } else {
+                for x in intersection_x[0]..=intersection_x[1] {
+                    self.set_pixel(x as u32, y, r, g, b);
+                }
+            }
+        }
+    }
 }
 
 fn isqrt(n: i32) -> i32 {
@@ -119,4 +161,34 @@ fn isqrt(n: i32) -> i32 {
     }
 
     x
+}
+
+/// Find maximum of values
+#[macro_export]
+#[macro_use]
+macro_rules! max {
+    ($x: expr) => ($x);
+    ($x: expr, $($z: expr),+) => {{
+        let y = max!($($z),*);
+        if $x > y {
+            $x
+        } else {
+            y
+        }
+    }}
+}
+
+/// Find minimum of values
+#[macro_export]
+#[macro_use]
+macro_rules! min {
+    ($x: expr) => ($x);
+    ($x: expr, $($z: expr),+) => {{
+        let y = min!($($z),*);
+        if $x < y {
+            $x
+        } else {
+            y
+        }
+    }}
 }

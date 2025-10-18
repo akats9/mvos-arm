@@ -61,6 +61,9 @@ pub trait MVulkanGPUDriver {
 pub trait MVulkanGeometry : MVulkanGPUDriver {
     /// Draw a circle with given center (Ox, Oy) and radius R.
     fn draw_circle(&mut self, Ox: u32, Oy: u32, R: u32, r: u8, g: u8, b: u8);
+
+    /// Draw a triangle given its three vertices
+    fn draw_triangle(&mut self, x1: u32, y1: u32, x2: u32, y2: u32, x3: u32, y3: u32, r: u8, g: u8, b: u8);
 }
 
 pub mod console;

@@ -95,6 +95,7 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
 
     if let Some(geometry_gpu) = unsafe { (*GPU_DEVICE.unwrap()).as_geometry_mut() } {
         geometry_gpu.draw_circle(1000, 350, 50, 200, 100, 0);
+        geometry_gpu.draw_triangle(800, 200, 850, 250, 840, 300, 0, 100, 200);
     }
     
     // let virtio_gpu_base = drivers::pci::find_pci_device(0x1af4, 0x1050);
