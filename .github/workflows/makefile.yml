@@ -1,0 +1,30 @@
+name: Makefile CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: configure
+      run: ./configure
+
+    - name: Install AArch64 bare-metal toolchain
+      run: |
+        wget https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/arm-gnu-toolchain-13.2.rel1-x86_64-aarch64-none-elf.tar.xz
+        tar xf arm-gnu-toolchain-13.2.rel1-x86_64-aarch64-none-elf.tar.xz
+        echo "$PWD/arm-gnu-toolchain-13.2.rel1-x86_64-aarch64-none-elf/bin" >> $GITHUB_PATH
+
+    - name: Install dependencies
+      run: make install HOST_PACK_MGR=apt
+
+    - name: Run with RamFB
+      run: make run GPU=ramfb
