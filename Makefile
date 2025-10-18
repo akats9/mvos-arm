@@ -227,6 +227,21 @@ info:
 		for src in $(C_SOURCES); do echo "    $$src"; done; \
 	fi
 
+HOST_PACK_MGR ?= brew
+# Install tools
+.PHONY: install
+install: 
+	@echo "Installing build tools..."
+	@which $(AS) > /dev/null || (echo "$(AS) not found, installing..." && sudo $(HOST_PACK_MGR) install $(TOOLCHAIN))
+	@which $(CC) > /dev/null || (echo "$(CC) not found, installing..." && sudo $(HOST_PACK_MGR) install $(TOOLCHAIN)$(CC))
+	@which $(LD) > /dev/null || (echo "$(LD) not found, installing..." && sudo $(HOST_PACK_MGR) install $(TOOLCHAIN))
+	@which $(AR) > /dev/null || (echo "$(AR) not found, installing..." && sudo $(HOST_PACK_MGR) install $(TOOLCHAIN))
+	@which $(CARGO) > /dev/null || (echo "$(CARGO) not found, installing..." && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && . $$HOME/.cargo/env && rustup install nightly-2025-09-08 && . $$HOME/.cargo/env && rustup default nightly-2025-09-08)
+	@which $(PYTHON) > /dev/null || (echo "$(PYTHON) not found, installing..." && sudo $(HOST_PACK_MGR) install $(PYTHON))
+	@which cbindgen > /dev/null || (echo "cbindgen not found, installing..." && sudo $(HOST_PACK_MGR) install cbindgen)
+	@which qemu-system-aarch64 > /dev/null || (echo "qemu-system-aarch64 not found, installing..." && sudo $(HOST_PACK_MGR) install qemu)
+	@echo "All required tools found!"
+
 # Check tools
 .PHONY: check-tools
 check-tools:
@@ -248,7 +263,7 @@ help:
 	@echo ""
 	@echo "Available targets:"
 	@echo "  all            - Build kernel (default)"
-	@echo "  interactive    - Interactive build (like your original script)"
+	@echo "  interactive    - Interactive build (like the original script)"
 	@echo "  bin            - Build kernel binary image"
 	@echo "  run            - Run kernel in QEMU"
 	@echo "  debug          - Run kernel in QEMU and await GDB"
@@ -256,9 +271,10 @@ help:
 	@echo "  clean-all      - Clean all artifacts including Cargo"
 	@echo "  rebuild        - Clean and rebuild everything"
 	@echo "  bindings       - Generate bindings header"
-	@echo "  dump    - Build kernel and dump disassembly"
+	@echo "  dump           - Build kernel and dump disassembly"
 	@echo "  info           - Show build configuration"
 	@echo "  check-tools    - Verify all required tools are available"
+	@echo "  install        - Install required tools"
 	@echo "  help           - Show this help"
 	@echo ""
 	@echo "Example usage:"
