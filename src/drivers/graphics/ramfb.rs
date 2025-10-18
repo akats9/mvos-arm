@@ -1,5 +1,7 @@
 use core::{ffi::c_char, ptr::null_mut};
-use crate::{bootscreen::bootscreen_visual, memory::allocator::alloc_ffi::kmalloc_aligned, mvulkan::MVulkanGPUDriver, serial_println, BPP, SCREENHEIGHT, SCREENWIDTH};
+use alloc::vec::Vec;
+
+use crate::{bootscreen::bootscreen_visual, memory::allocator::alloc_ffi::kmalloc_aligned, mvulkan::{MVulkanGPUDriver, MVulkanGeometry}, serial_println, BPP, SCREENHEIGHT, SCREENWIDTH};
 
 unsafe extern "C" {
     fn ramfb_clear(color: u8, fb_addr: *mut c_char);
@@ -69,4 +71,52 @@ impl MVulkanGPUDriver for RamFBDriver {
             ramfb_draw_letter(utf8, r, g, b, x, y, self.fb_addr, scale);
         }
     }
+
+    fn as_geometry(&self) -> Option<&dyn crate::mvulkan::MVulkanGeometry> {
+        Some(self)
+    }
+
+    fn as_geometry_mut(&mut self) -> Option<&mut dyn crate::mvulkan::MVulkanGeometry> {
+        Some(self)
+    }
+}
+
+impl MVulkanGeometry for RamFBDriver {
+    fn draw_circle(&mut self, Ox: u32, Oy: u32, R: u32, r: u8, g: u8, b: u8) {
+        let mut points: Vec<(u32, u32)> = Vec::new();
+        let radius_sq = R.pow(2);
+
+        for dy in -(R as i32)..=R as i32 {
+            let y = Oy as i32 + dy;
+            let dy_sq = dy.pow(2);
+
+            let rem = radius_sq as i32 - dy_sq;
+            if rem < 0 {continue;}
+
+            let dx_max = isqrt(rem);
+
+            for dx in -dx_max..=dx_max {
+                let x = Ox as i32 + dx;
+                points.push((x as u32,y as u32));
+            }
+        }
+
+        for point in points {
+            let (x, y) = point;
+            self.set_pixel(x, y, r, g, b);
+        }
+    }
+}
+
+fn isqrt(n: i32) -> i32 {
+    if n < 0 { return 0; }
+    let mut x = n;
+    let mut y = (x + 1) / 2;
+    
+    while y < x {
+        x = y;
+        y = (x + n/x) / 2;
+    }
+
+    x
 }

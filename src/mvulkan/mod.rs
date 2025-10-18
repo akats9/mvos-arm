@@ -17,6 +17,19 @@ use core::ffi::c_char;
 /// to be considered MVulkan-compatible (i.e, the bare minimum that MVOS
 /// needs to present a visual console.)
 pub trait MVulkanGPUDriver {
+
+    /// Return a reference to self if the device driver supports advanced geometry features 
+    /// (must implement this method in driver, default is `None`)
+    fn as_geometry(&self) -> Option<&dyn MVulkanGeometry> {
+        None
+    }
+
+    /// Return a mutable reference to self if the device driver supports advanced geometry features 
+    /// (must implement this method in driver, default is `None`)
+    fn as_geometry_mut(&mut self) -> Option<&mut dyn MVulkanGeometry> {
+        None
+    }
+
     /// Setup function to enable the GPU. 
     /// 
     /// This function returns Ok(()) if the operation succeeds
@@ -37,6 +50,17 @@ pub trait MVulkanGPUDriver {
 
     /// Print a UTF-8 character to the screen with given coordinates, scaling and color
     fn draw_char(&mut self, utf8: usize, r: u8, g: u8, b: u8, x: u32, y: u32, scale: u8);
+}
+
+/// This trait includes methods to draw advanced geometric shapes
+/// such as triangles and circles. Since advanced geometry is not 
+/// required for the visual console, this trait is optional.  
+/// 
+/// To opt in, the driver must implement the `as_geometry` and `as_geometry_mut`
+/// methods of the `MVulkanGPUDriver` trait and return `Some(self)`. 
+pub trait MVulkanGeometry : MVulkanGPUDriver {
+    /// Draw a circle with given center (Ox, Oy) and radius R.
+    fn draw_circle(&mut self, Ox: u32, Oy: u32, R: u32, r: u8, g: u8, b: u8);
 }
 
 pub mod console;

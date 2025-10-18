@@ -1,4 +1,4 @@
-* Fix timer
 * Add processes and threads
+* Expand MVulkan API and GPU support
 * Add GRUB support
 * Add testing framework
