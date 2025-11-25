@@ -60,6 +60,8 @@ void c_dbg_bin(uint64_t bin);
  */
 void c_dgb_hex(uint64_t hex);
 
+extern int32_t c_init_xhci(void);
+
 void c_panic(const char *msg);
 
 /**
@@ -70,6 +72,8 @@ void c_serial_println(const char *message);
 extern int32_t c_setup_ramfb(char *fb_addr, uint32_t width, uint32_t height);
 
 extern void display_bootscreen(char *fb_addr);
+
+uint64_t find_pci_device(uint32_t vendor_id, uint32_t device_id);
 
 void interrupt_handler(void);
 
@@ -87,9 +91,13 @@ uint32_t mmio_read32(uint64_t addr);
 
 uint64_t mmio_read64(uint64_t addr);
 
+uint8_t mmio_read8(uint8_t addr);
+
 void mmio_write32(uint64_t reg, uint32_t data);
 
 extern void mmu_init(void);
+
+extern bool pci_enable_device_c(uint64_t base);
 
 extern bool pci_enable_device_c(uint64_t base);
 
@@ -126,3 +134,5 @@ void serror_current_el_spx_handler(void);
 void sync_current_el_spx_handler(struct InterruptFrame *frame);
 
 void verify_MMU(void);
+
+extern int32_t virtio_generic_setup_c(uint64_t virtio_base, uint16_t device_id);

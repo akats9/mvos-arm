@@ -1,7 +1,8 @@
 use core::{ffi::c_char, ptr::null_mut};
 use alloc::vec::Vec;
+use spin::mutex;
 
-use crate::{bootscreen::bootscreen_visual, memory::allocator::alloc_ffi::kmalloc_aligned, mvulkan::{MVulkanGPUDriver, MVulkanGeometry}, serial_println, BPP, SCREENHEIGHT, SCREENWIDTH};
+use crate::{BPP, SCREENHEIGHT, SCREENWIDTH, bootscreen::bootscreen_visual, memory::allocator::alloc_ffi::kmalloc_aligned, mvulkan::{MVulkanGPUDriver, MVulkanGeometry}, serial_println, thread};
 use crate::{min, max};
 
 unsafe extern "C" {
@@ -83,25 +84,49 @@ impl MVulkanGPUDriver for RamFBDriver {
 }
 
 impl MVulkanGeometry for RamFBDriver {
-    fn draw_circle(&mut self, Ox: u32, Oy: u32, R: u32, r: u8, g: u8, b: u8) {
+    fn draw_circle(&mut self, Ox: u32, Oy: u32, R: u32, r: u8, g: u8, b: u8, fill: bool) {
         if Ox < R || Ox + R > SCREENWIDTH || Oy < R || Oy + R > SCREENHEIGHT { return; }
         let mut points: Vec<(u32, u32)> = Vec::new();
         let radius_sq = R.pow(2);
 
-        for dy in -(R as i32)..=R as i32 {
-            let y = Oy as i32 + dy;
-            let dy_sq = dy.pow(2);
+        if fill {
+            for dy in -(R as i32)..=R as i32 {
+                let y = Oy as i32 + dy;
+                let dy_sq = dy.pow(2);
 
-            let rem = radius_sq as i32 - dy_sq;
-            if rem < 0 {continue;}
+                let rem = radius_sq as i32 - dy_sq;
+                if rem < 0 {continue;}
 
-            let dx_max = isqrt(rem);
+                let dx_max = isqrt(rem);
 
-            for dx in -dx_max..=dx_max {
-                let x = Ox as i32 + dx;
-                points.push((x as u32,y as u32));
+                for dx in -dx_max..=dx_max {
+                    let x = Ox as i32 + dx;
+                    points.push((x as u32,y as u32));
+                }
+            }
+        } else {
+            let mut x = R;
+            let mut y = 0;
+
+            let mut p: i32 = 1 - r as i32;
+            while x > y {
+                y += 1;
+                if p <= 0 { p = p + 2*y as i32 + 1; }
+                else { x -= 1; p = p+ 2*y as i32 - 2*x as i32 + 1; }
+                if x < y { break; }
+                points.push((x as u32 + Ox, y as u32 + Oy));
+                points.push(((-(x as i32) + Ox as i32) as u32, y as u32 + Oy));
+                points.push((x as u32 + Ox, (-(y as i32) + Oy as i32) as u32));
+                points.push(((-(x as i32) + Ox as i32) as u32, (-(y as i32) + Oy as i32) as u32));
+                if x != y {
+                    points.push((y as u32 + Ox, x as u32 + Oy));
+                    points.push(((-(y as i32) + Ox as i32) as u32, x as u32 + Oy));
+                    points.push((y as u32 + Ox, (-(x as i32) + Oy as i32) as u32));
+                    points.push(((-(y as i32) + Ox as i32) as u32, (-(x as i32) + Oy as i32) as u32));
+                }
             }
         }
+        
 
         for point in points {
             let (x, y) = point;
@@ -109,42 +134,95 @@ impl MVulkanGeometry for RamFBDriver {
         }
     }
 
-    fn draw_triangle(&mut self, x1: u32, y1: u32, x2: u32, y2: u32, x3: u32, y3: u32, r: u8, g: u8, b: u8) {
-        let miny = min!(y1, y2, y3);
-        let maxy = max!(x1, x2, x3);
+    fn draw_triangle(&mut self, x1: u32, y1: u32, x2: u32, y2: u32, x3: u32, y3: u32, r: u8, g: u8, b: u8, fill: bool) {
+        if fill {
+            // Sort vertices by y-coordinate (y1 <= y2 <= y3)
+            let mut vertices = [(x1, y1), (x2, y2), (x3, y3)];
+            vertices.sort_by_key(|v| v.1);
+            let [(x1, y1), (x2, y2), (x3, y3)] = vertices;
 
-        for y in miny..=maxy {
-            let mut intersection_x: [i32; 2] = [-1; 2];
-            if y1 <= y && y <= y2 {
-                let x = x1 + (y - y1)*(x2 - x1)/(y2-y1);
-                if intersection_x[0] > -1 { if intersection_x[1] > -1 {return;} else {intersection_x[1] = x as i32;}} else {intersection_x[0] = x as i32;}
-            } else if y2 <= y && y <= y1 {
-                let x = x2 + (y - y2)*(x1 - x2)/(y1-y2);
-                if intersection_x[0] > -1 { if intersection_x[1] > -1 {return;} else {intersection_x[1] = x as i32;}} else {intersection_x[0] = x as i32;}
-            }
-            if y2 <= y && y <= y3 {
-                let x = x2 + (y - y2)*(x3 - x2)/(y3-y2);
-                if intersection_x[0] > -1 { if intersection_x[1] > -1 {return;} else {intersection_x[1] = x as i32;}} else {intersection_x[0] = x as i32;}
-            } else if y3 <= y && y <= y2 {
-                let x = x3 + (y - y3)*(x2 - x3)/(y2-y3);
-                if intersection_x[0] > -1 { if intersection_x[1] > -1 {return;} else {intersection_x[1] = x as i32;}} else {intersection_x[0] = x as i32;}
-            }
-            if y3 <= y && y <= y1 {
-                let x = x3 + (y - y3)*(x1 - x3)/(y1-y3);
-                if intersection_x[0] > -1 { if intersection_x[1] > -1 {return;} else {intersection_x[1] = x as i32;}} else {intersection_x[0] = x as i32;}
-            } else if y1 <= y && y <= y3 {
-                let x = x1 + (y - y1)*(x3 - x1)/(y3-y1);
-                if intersection_x[0] > -1 { if intersection_x[1] > -1 {return;} else {intersection_x[1] = x as i32;}} else {intersection_x[0] = x as i32;}
-            }
-            intersection_x.sort();
-            if intersection_x == [-1; 2] {
-                continue;
-            } else if intersection_x[0] < 0 && intersection_x[1] >= 0 {
-                self.set_pixel(intersection_x[1] as u32, y, r, g, b);
-            } else {
-                for x in intersection_x[0]..=intersection_x[1] {
-                    self.set_pixel(x as u32, y, r, g, b);
+            // Helper function to interpolate x coordinate for a given y
+            let interpolate_x = |y: u32, ya: u32, xa: u32, yb: u32, xb: u32| -> u32 {
+                if yb == ya {
+                    return xa;
                 }
+                let ya = ya as i32;
+                let yb = yb as i32;
+                let xa = xa as i32;
+                let xb = xb as i32;
+                let y = y as i32;
+                
+                (xa + (xb - xa) * (y - ya) / (yb - ya)) as u32
+            };
+
+            // Fill the triangle by splitting it into two parts
+            // Top part: from y1 to y2
+            for y in y1..=y2 {
+                let x_left = interpolate_x(y, y1, x1, y3, x3);
+                let x_right = interpolate_x(y, y1, x1, y2, x2);
+                
+                let (x_start, x_end) = if x_left <= x_right {
+                    (x_left, x_right)
+                } else {
+                    (x_right, x_left)
+                };
+                
+                for x in x_start..=x_end {
+                    self.set_pixel(x, y, r, g, b);
+                }
+            }
+
+            // Bottom part: from y2 to y3
+            for y in (y2 + 1)..=y3 {
+                let x_left = interpolate_x(y, y1, x1, y3, x3);
+                let x_right = interpolate_x(y, y2, x2, y3, x3);
+                
+                let (x_start, x_end) = if x_left <= x_right {
+                    (x_left, x_right)
+                } else {
+                    (x_right, x_left)
+                };
+                
+                for x in x_start..=x_end {
+                    self.set_pixel(x, y, r, g, b);
+                }
+            }
+        } else {
+            self.draw_line(x1, y1, x2, y2, 0xff, 0, 0);
+            thread::sleep(2);
+            self.draw_line(x2, y2, x3, y3, 0, 0xff, 0);
+            thread::sleep(2);
+            self.draw_line(x3, y3, x1, y1, 0, 0, 0xff);
+        }
+    }
+
+    fn draw_line(&mut self, x0: u32, y0: u32, x1: u32, y1: u32, r: u8, g: u8, b: u8) {
+        let mut x0 = x0 as i32;
+        let mut y0 = y0 as i32;
+        let x1 = x1 as i32;
+        let y1 = y1 as i32;
+        
+        let dx = (x1 - x0).abs();
+        let dy = (y1 - y0).abs();
+        let sx = if x0 < x1 { 1 } else { -1 };
+        let sy = if y0 < y1 { 1 } else { -1 };
+        let mut err = dx - dy;
+
+        loop {
+            self.set_pixel(x0 as u32, y0 as u32, r, g, b);
+            
+            if x0 == x1 && y0 == y1 {
+                break;
+            }
+            
+            let e2 = 2 * err;
+            if e2 > -dy {
+                err -= dy;
+                x0 += sx;
+            }
+            if e2 < dx {
+                err += dx;
+                y0 += sy;
             }
         }
     }

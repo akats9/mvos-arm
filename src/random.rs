@@ -5,7 +5,7 @@
 use alloc::vec::Vec;
 use alloc::string::String;
 
-use crate::BIBLE;
+use crate::{BIBLE, TIMER, console_println, SCALE, SCREENHEIGHT, SCREENWIDTH, GPU_DEVICE};
 
 pub fn random(seed: usize) -> usize {
     let m = 2_usize.pow(32);
@@ -22,4 +22,18 @@ pub fn random_bible_line(seed: usize) -> Option<&'static str> {
 
     let index = random(seed) % lines.len();
     Some(lines[index])
+}
+
+pub fn random_x_lines(x: usize) {
+    for i in 0..x {
+        let l = match random_bible_line(46748 * i * unsafe {TIMER + 35} + 482943 * unsafe { TIMER + 3 }) {
+            Some(l) => l, 
+            None => "--- !!! YOU HAVE REACHED HELL !!! ---",
+        };
+        let color = match l {
+            "--- !!! YOU HAVE REACHED HELL !!! ---" => 0xff0000,
+            _ => 0xffbb44,
+        };
+        console_println!("{}", l ; color: color);
+    }
 }

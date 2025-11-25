@@ -13,7 +13,8 @@ pub fn mmio_write_barrier() {
     unsafe { asm!("dsb sy", options(nostack)); }
 }
 
-pub fn mmio_read8(addr: u8) -> u8 {
+#[unsafe(no_mangle)]
+pub extern "C" fn mmio_read8(addr: u8) -> u8 {
    unsafe { (addr as *mut u8).read_volatile() as u8 } 
 }
 

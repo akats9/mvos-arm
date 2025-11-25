@@ -3,11 +3,6 @@
 #include "../drivers/pci.h"
 #include "mmu.h"
 
-#define MAIR_DEVICE_nGnRnE 0b00000000
-#define MAIR_NORMAL_NOCACHE 0b10000100
-#define MAIR_IDX_DEVICE 0
-#define MAIR_IDX_NORMAL 1
-
 #define PD_TABLE 0b11
 #define PD_BLOCK 0b01
 
@@ -21,9 +16,6 @@
 #define PAGE_TABLE_ENTRIES 512
 
 #define ENTRY_MASK 0xfffffffff000ULL
-
-#define GRANULE_2MB 0x200000
-#define GRANULE_4KB 0x1000
 
 static uint64_t kernel_start = 0x40000000; // ☦️
 static uint64_t kcode_end    = 0x50000000;
@@ -213,13 +205,15 @@ void mmu_unmap(uint64_t pa, uint64_t va) {
     mmu_flush_icache();
 }
 
+
 void mmu_init() {
     uint64_t kstart = kernel_start;
     uint64_t kend = kcode_end;
 
     for (uint64_t addr = kstart; addr <= kend; addr += GRANULE_2MB) mmu_map_2mb(addr, addr, MAIR_IDX_NORMAL);
     for (uint64_t addr = UART_BASE - 0x1000; addr <= UART_BASE + 0x100000; addr += GRANULE_4KB) mmu_map_4kb(addr, addr, MAIR_IDX_DEVICE, 1);
-    for (uint64_t addr = 0x8000000 - 0x1000; addr <= 0x8000000 + 0x100000; addr += GRANULE_4KB) mmu_map_4kb(addr, addr, MAIR_IDX_DEVICE, 1);
+    for (uint64_t addr = GIC_BASE - 0x1000; addr <= GIC_BASE + 0x100000; addr += GRANULE_4KB) mmu_map_4kb(addr, addr, MAIR_IDX_DEVICE, 1);
+    for (uint64_t addr = PCI_ECAM_BASE - 0x1000; addr <= PCI_ECAM_BASE + (0x100 * 1000000); addr += GRANULE_4KB) mmu_map_4kb(addr, addr, MAIR_IDX_DEVICE, 1);
 
     uint64_t mair = (MAIR_DEVICE_nGnRnE << (MAIR_IDX_DEVICE * 8)) | (MAIR_NORMAL_NOCACHE << (MAIR_IDX_NORMAL * 8));
     asm volatile ("msr mair_el1, %0" :: "r"(mair));

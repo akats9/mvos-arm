@@ -11,7 +11,7 @@ extern crate alloc;
 use drivers::uart::UartWriter;
 use alloc::vec::Vec;
 
-use crate::{bootscreen::print_bootscreen, exceptions::{irq::{enable_timer, gic_init}, set_exception_vectors}, memory::allocator::{alloc_ffi::kmalloc_aligned, init_heap}, mvulkan::{console, MVulkanGPUDriver}, random::random_bible_line};
+use crate::{bootscreen::print_bootscreen, drivers::graphics::{self, virtio::VirtioDriver}, exceptions::{irq::{enable_timer, gic_init}, set_exception_vectors}, memory::allocator::{alloc_ffi::kmalloc_aligned, init_heap}, mvulkan::{console, MVulkanGPUDriver}, random::random_bible_line};
 
 // C functions
 unsafe extern "C" {
@@ -81,30 +81,28 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
     console_print!("Color test" ; color: 0xffaa55);
     console_println!(" Same line test" ; color: 0x55aaff);
 
-    for i in 0..50 {
-        let l = match random_bible_line(46748 * i) {
-            Some(l) => l, 
-            None => "--- !!! YOU HAVE REACHED HELL !!! ---",
-        };
-        let color = match l {
-            "--- !!! YOU HAVE REACHED HELL !!! ---" => 0xff0000,
-            _ => 0xffbb44,
-        };
-        console_println!("{}", l ; color: color);
-    }
-
     if let Some(geometry_gpu) = unsafe { (*GPU_DEVICE.unwrap()).as_geometry_mut() } {
-        geometry_gpu.draw_circle(1000, 350, 50, 200, 100, 0);
-        geometry_gpu.draw_triangle(800, 200, 850, 250, 840, 300, 0, 100, 200);
+        // geometry_gpu.draw_circle(1000, 350, 51, 50, 200, 100, false);
+        // geometry_gpu.draw_circle(1000, 350, 50, 200, 100, 0, true);
+        geometry_gpu.draw_triangle(800, 200, 900, 300, 840, 500, 0, 100, 200, true);
+        geometry_gpu.draw_triangle(800, 200, 900, 300, 840, 500, 100, 200, 0, false);
+        geometry_gpu.draw_line(500, 500, 500, 600, 60, 120, 180);
     }
+
+    //unsafe { drivers::xhci::c::c_init_xhci() };
     
-    // let virtio_gpu_base = drivers::pci::find_pci_device(0x1af4, 0x1050);
+    // let mut VIRTIO_GPU_DEVICE: Option<VirtioDriver> = match graphics::virtio::VirtioDriver::new() {
+    //     Ok(d) => Some(d),
+    //     Err(e) => {error_count += e as u32; None},
+    // };
 
-    // serial_println!("[  DRIVERS  ] Finding VirtIO GPU device... {}\x1b[0m", {if virtio_gpu_base == 0x0 {"\x1b[0;31mFAILED"} else {"\x1b[0;32mSUCCESS"}});
-
-    // unsafe { 
-    //     let virtio_gpu_enabled =  pci_enable_device_c(virtio_gpu_base); 
-    //     serial_println!("[  DRIVERS  ] Enabling VirtIO GPU device... {}\x1b[0m", {if virtio_gpu_enabled {"\x1b[0;32mSUCCESS"} else {"\x1b[0;31mFAILED"}});
+    // if let Some(mut d) = VIRTIO_GPU_DEVICE {
+    //     match d.setup() {
+    //         Ok(()) => {},
+    //         Err(e) => serial_println!("[  DRIVERS  ]\x1b[0;31m VirtIO GPU Error: {}\x1b[0m", e),
+    //     };
+    // } else {
+    //     serial_println!("[  DRIVERS  ]\x1b[0;31m VirtIO GPU device could not be set up (device not present)\x1b[0m");
     // }
 
     if error_count == 0 { 
@@ -168,3 +166,5 @@ pub mod bindings;
 pub mod bootscreen;
 pub mod mvulkan;
 pub mod random;
+pub mod thread;
+pub mod trinkets;

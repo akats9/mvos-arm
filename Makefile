@@ -166,6 +166,7 @@ run: $(KERNEL_ELF)
 		-m $(MEMORY) \
 		-kernel $< \
 		-device $(GPU) \
+		-device qemu-xhci \
 		-serial stdio \
 		-monitor unix:/tmp/qemu-monitor-socket,server,nowait 
 
@@ -178,6 +179,7 @@ debug: $(KERNEL_ELF)
 		-m $(MEMORY) \
 		-kernel $< \
 		-device $(GPU) \
+		-device qemu-xhci \
 		-serial stdio \
 		-monitor unix:/tmp/qemu-monitor-socket,server,nowait \
 		-s -S
@@ -240,7 +242,7 @@ install:
 	@which $(PYTHON) > /dev/null || (echo "$(PYTHON) not found, installing..." && sudo $(HOST_PACK_MGR) install $(PYTHON))
 	@which cbindgen > /dev/null || (echo "cbindgen not found, installing..." && sudo $(HOST_PACK_MGR) install cbindgen)
 	@which qemu-system-aarch64 > /dev/null || (echo "qemu-system-aarch64 not found, installing..." && sudo $(HOST_PACK_MGR) install qemu)
-	@echo "All required tools found!"
+	@echo "All required tools installed!"
 
 # Check tools
 .PHONY: check-tools

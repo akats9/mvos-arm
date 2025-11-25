@@ -56,7 +56,8 @@ pub fn inspect_bar(base: u64, offset: u8) {
     }
 }
 
-pub fn find_pci_device(vendor_id: u32, device_id: u32) -> u64 {
+#[unsafe(no_mangle)]
+pub extern "C" fn find_pci_device(vendor_id: u32, device_id: u32) -> u64 {
     for bus in 0..PCI_BUS_MAX as u32 {
         for slot in 0..PCI_SLOT_MAX as u32 {
             for func in 0..PCI_FUNC_MAX as u32 {

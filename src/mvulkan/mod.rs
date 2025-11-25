@@ -60,10 +60,13 @@ pub trait MVulkanGPUDriver {
 /// methods of the `MVulkanGPUDriver` trait and return `Some(self)`. 
 pub trait MVulkanGeometry : MVulkanGPUDriver {
     /// Draw a circle with given center (Ox, Oy) and radius R.
-    fn draw_circle(&mut self, Ox: u32, Oy: u32, R: u32, r: u8, g: u8, b: u8);
+    fn draw_circle(&mut self, Ox: u32, Oy: u32, R: u32, r: u8, g: u8, b: u8, fill: bool);
 
     /// Draw a triangle given its three vertices
-    fn draw_triangle(&mut self, x1: u32, y1: u32, x2: u32, y2: u32, x3: u32, y3: u32, r: u8, g: u8, b: u8);
+    fn draw_triangle(&mut self, x1: u32, y1: u32, x2: u32, y2: u32, x3: u32, y3: u32, r: u8, g: u8, b: u8, fill: bool);
+
+    /// Draw a line given its endpoints
+    fn draw_line(&mut self, x0: u32, y0: u32, x1: u32, y1: u32, r: u8, g: u8, b: u8);
 }
 
 pub mod console;
