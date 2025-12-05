@@ -1,17 +1,65 @@
 #include "types.h" 
 #include <stdbool.h>
 
+#define BLACK 0
+
+#define BLUE 170
+
 #define BPP 4
+
+#define BROWN 11162880
+
+#define CYAN 43690
+
+#define DBG_YELLOW 14402339
+
+#define D_GRAY 5592405
+
+#define ERROR_RED 14483456
+
+#define FAIL_RED 11141120
+
+#define GENERIC_WHITE 16777215
 
 #define GICC 134283264
 
 #define GICD 134217728
+
+#define GREEN 43520
+
+#define INFO_GREEN 4308232
+
+#define L_BLUE 5592575
+
+#define L_CYAN 5636095
+
+#define L_GRAY 11184810
+
+#define L_GREEN 5635925
+
+#define L_MAGENTA 16733695
+
+#define L_RED 16733525
+
+#define MAGENTA 11141290
+
+#define PANIC_RED 16711680
+
+#define RED 11141120
 
 #define SCALE 1
 
 #define SCREENHEIGHT 720
 
 #define SCREENWIDTH 1280
+
+#define SUCCESS_GREEN 65280
+
+#define WARNING_ORANGE 15900431
+
+#define WHITE 16777215
+
+#define YELLOW 16777045
 
 typedef struct InterruptFrame {
     uint64_t x0;

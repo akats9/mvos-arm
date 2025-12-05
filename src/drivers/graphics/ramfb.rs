@@ -2,15 +2,19 @@ use core::{ffi::c_char, ptr::null_mut};
 use alloc::vec::Vec;
 use spin::mutex;
 
-use crate::{BPP, SCREENHEIGHT, SCREENWIDTH, bootscreen::bootscreen_visual, memory::allocator::alloc_ffi::kmalloc_aligned, mvulkan::{MVulkanGPUDriver, MVulkanGeometry}, serial_println, thread};
+use crate::{BPP, SCREENHEIGHT, SCREENWIDTH, bootscreen::bootscreen_visual, dbg, memory::allocator::alloc_ffi::kmalloc_aligned, mvulkan::{MVulkanGPUDriver, MVulkanGeometry, MVulkanText}, serial_println, thread};
 use crate::{min, max};
 
-unsafe extern "C" {
-    fn ramfb_clear(color: u8, fb_addr: *mut c_char);
-    fn ramfb_set_pixel(x: u32, y: u32, r: u8, g: u8, b: u8, fb: *mut c_char);
-    fn c_setup_ramfb(fb_addr: *mut c_char, width: u32, height: u32) -> i32;
-    fn ramfb_draw_rect(minx: u32, maxx: u32, miny: u32, maxy: u32, r: u8, g: u8, b: u8, fb_addr: *mut c_char);
-    fn ramfb_draw_letter(utf8_offset: usize, r: u8, g: u8, b: u8, x: u32, y: u32, fb_addr: *mut c_char, scale: u8);
+pub mod c {
+    use core::ffi::c_char;
+
+    unsafe extern "C" {
+        pub fn ramfb_clear(color: u8, fb_addr: *mut c_char);
+        pub fn ramfb_set_pixel(x: u32, y: u32, r: u8, g: u8, b: u8, fb: *mut c_char);
+        pub fn c_setup_ramfb(fb_addr: *mut c_char, width: u32, height: u32) -> i32;
+        pub fn ramfb_draw_rect(minx: u32, maxx: u32, miny: u32, maxy: u32, r: u8, g: u8, b: u8, fb_addr: *mut c_char);
+        pub fn ramfb_draw_letter(utf8_offset: usize, r: u8, g: u8, b: u8, x: u32, y: u32, fb_addr: *mut c_char, scale: u8);
+    }
 }
 
 /// RamFB device driver that implements MVulkan API.
@@ -41,7 +45,7 @@ impl MVulkanGPUDriver for RamFBDriver {
         let fb_addr = kmalloc_aligned((BPP*SCREENWIDTH*SCREENHEIGHT) as usize, 4096);
         self.fb_addr = fb_addr;
         unsafe { 
-            let res = c_setup_ramfb(self.fb_addr, SCREENWIDTH, SCREENHEIGHT); 
+            let res = c::c_setup_ramfb(self.fb_addr, SCREENWIDTH, SCREENHEIGHT); 
             if res != 0 {
                 return Err("Error: failed to initialize RamFB device (device not present).");
             } else {
@@ -52,25 +56,25 @@ impl MVulkanGPUDriver for RamFBDriver {
 
     fn clear(&mut self, color: u8) {
         unsafe {
-            ramfb_clear(color, self.fb_addr);
+            c::ramfb_clear(color, self.fb_addr);
         }
     }
 
     fn draw_rect(&mut self, minx: u32, maxx: u32, miny: u32, maxy: u32, r: u8, g: u8, b: u8) {
         unsafe {
-            ramfb_draw_rect(minx, maxx, miny, maxy, r, g, b, self.fb_addr);
+            c::ramfb_draw_rect(minx, maxx, miny, maxy, r, g, b, self.fb_addr);
         }
     }
 
     fn set_pixel(&mut self, x: u32, y: u32, r: u8, g: u8, b: u8) {
         unsafe {
-            ramfb_set_pixel(x, y, r, g, b, self.fb_addr);
+            c::ramfb_set_pixel(x, y, r, g, b, self.fb_addr);
         }
     }
 
     fn draw_char(&mut self, utf8: usize, r: u8, g: u8, b: u8, x: u32, y: u32, scale: u8) {
         unsafe {
-            ramfb_draw_letter(utf8, r, g, b, x, y, self.fb_addr, scale);
+            c::ramfb_draw_letter(utf8, r, g, b, x, y, self.fb_addr, scale);
         }
     }
 
@@ -79,6 +83,14 @@ impl MVulkanGPUDriver for RamFBDriver {
     }
 
     fn as_geometry_mut(&mut self) -> Option<&mut dyn crate::mvulkan::MVulkanGeometry> {
+        Some(self)
+    }
+
+    fn as_text(&self) -> Option<&dyn crate::mvulkan::MVulkanText> {
+        Some(self)
+    }
+
+    fn as_text_mut(&mut self) -> Option<&mut dyn crate::mvulkan::MVulkanText> {
         Some(self)
     }
 }
@@ -188,11 +200,9 @@ impl MVulkanGeometry for RamFBDriver {
                 }
             }
         } else {
-            self.draw_line(x1, y1, x2, y2, 0xff, 0, 0);
-            thread::sleep(2);
-            self.draw_line(x2, y2, x3, y3, 0, 0xff, 0);
-            thread::sleep(2);
-            self.draw_line(x3, y3, x1, y1, 0, 0, 0xff);
+            self.draw_line(x1, y1, x2, y2, r, g, b);
+            self.draw_line(x2, y2, x3, y3, r, g, b);
+            self.draw_line(x3, y3, x1, y1, r, g, b);
         }
     }
 
@@ -226,6 +236,31 @@ impl MVulkanGeometry for RamFBDriver {
             }
         }
     }
+}
+
+impl MVulkanText for RamFBDriver {
+    fn draw_textbox(&mut self, message: &str, x: u32, y: u32, scale: u8, color: u32) {
+        if x > SCREENWIDTH - 8 || y > SCREENHEIGHT - 8 {return;}
+        let mut cursor: (u32, u32) = (x,y);
+        for c in message.chars() {
+            if c == '\n' {
+                newline(&mut cursor, x, y, scale);
+            } else {
+                let utf8 = c as u32 as usize;
+                let r = (color >> 16 & 0xff) as u8;
+                let g = (color >> 8 & 0xff) as u8;
+                let b = (color & 0xff) as u8;
+                self.draw_char(utf8, r, g, b, cursor.0, cursor.1, scale);
+                cursor.0 += (scale*8) as u32;
+            }
+        }
+    }
+}
+
+fn newline(cursor: &mut (u32, u32), x: u32, y: u32, scale: u8) {
+    dbg!("NEWLINE");
+    cursor.0 = x;
+    cursor.1 += (scale*8) as u32;
 }
 
 fn isqrt(n: i32) -> i32 {

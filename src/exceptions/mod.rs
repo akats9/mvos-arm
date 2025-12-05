@@ -1,6 +1,6 @@
 use core::{arch::asm, panic};
 
-use crate::{dbg, exceptions::irq::{tick_timer, GICC}, memory::mmio::{mmio_read32, mmio_write32}, serial_println};
+use crate::{dbg, drivers::uart::uart_irq_handler, exceptions::irq::{GICC, tick_timer}, memory::mmio::{mmio_read32, mmio_write32}, serial_println};
 
 pub unsafe fn set_exception_vectors() {
     unsafe extern "C" { static exception_vectors: [u8; 0]; }
@@ -251,12 +251,14 @@ pub extern "C" fn interrupt_handler() {
     let irq_id = mmio_read32(GICC as u64 + 0xc);
 
     match irq_id {
-        30 => {tick_timer();}
+        30 => {tick_timer();},
+        33 => {uart_irq_handler();}
         _ => {
             dbg!("unknown interrupt");
             mmio_write32(GICC as u64 + 0x10, irq_id);
         }
     }
+    mmio_write32(GICC as u64 + 0x10, irq_id);
 }
 
 #[unsafe(no_mangle)]

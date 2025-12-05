@@ -3,6 +3,7 @@
 #![feature(slice_internals)]
 #![feature(asm_const)]
 #![feature(asm_sym)]
+#![feature(ascii_char)]
 
 use core::{arch::asm, ffi::{c_char, CStr}, ptr::null_mut};
 
@@ -11,7 +12,7 @@ extern crate alloc;
 use drivers::uart::UartWriter;
 use alloc::vec::Vec;
 
-use crate::{bootscreen::print_bootscreen, drivers::graphics::{self, virtio::VirtioDriver}, exceptions::{irq::{enable_timer, gic_init}, set_exception_vectors}, memory::allocator::{alloc_ffi::kmalloc_aligned, init_heap}, mvulkan::{console, MVulkanGPUDriver}, random::random_bible_line};
+use crate::{bootscreen::print_bootscreen, drivers::{graphics::{self, virtio::VirtioDriver}, uart::uart_enable_rxim}, exceptions::{irq::{enable_timer, gic_init}, set_exception_vectors}, memory::allocator::{alloc_ffi::kmalloc_aligned, init_heap}, mvulkan::{MVulkanGPUDriver, console}, random::random_bible_line};
 
 // C functions
 unsafe extern "C" {
@@ -40,7 +41,7 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
     let mut error_count: u32 = 0;
     print_bootscreen();
     serial_println!("\x1B[1;32m[  ☦️INFO   ] Hello World!\x1B[0m");
-    serial_println!("\x1B[1;32m[  ☦️INFO   ] MVOS aarch64 version 0.0.3\x1B[0m");
+    serial_println!("\x1B[1;32m[  ☦️INFO   ] MVOS aarch64 version 0.0.4\x1B[0m");
 
     
     serial_println!("[ ☦️MEMORY  ] Initializing heap...");
@@ -53,7 +54,9 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
     unsafe { mmu_init(); }
     
     gic_init();
+    serial_println!("[ ☦️SYSTEM  ] \x1b[1;32mFinished GIC init.\x1b[0m");
     enable_timer();
+    unsafe { uart_enable_rxim(); }
     
     let mut RAMFB_DEVICE = drivers::graphics::ramfb::RamFBDriver::new();
     
@@ -73,21 +76,28 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
         Err(e) => { error_count += 1; serial_println!("[  DRIVERS  ]\x1b[0;31m RamFB {}\x1b[0m", e) } 
     };
     
-    console_println!("[   INFO   ] Hello World!", ; r:0, g:0xff, b:0);
-    console_println!("[   INFO   ] MVOS aarch64 version 0.0.3", ; r:0, g:0xff, b:0);
+    console_println!("[   INFO   ] Hello World!", ; color: mvulkan::color::INFO_GREEN);
+    console_println!("[   INFO   ] MVOS aarch64 version 0.0.4", ; color: mvulkan::color::INFO_GREEN);
+    console_println!("[   INFO   ] MVulkan version 0.0.3", ; color: mvulkan::color::INFO_GREEN);
 
     console_println!("Γεια σου Κοσμε!", ; r: 255, g: 255, b: 255); // hell
+    console_println!("[   INFO   ] The MMU is active" ; color: mvulkan::color::INFO_GREEN);
 
-    console_print!("Color test" ; color: 0xffaa55);
-    console_println!(" Same line test" ; color: 0x55aaff);
+    // if let Some(geometry_gpu) = unsafe { (*GPU_DEVICE.unwrap()).as_geometry_mut() } {
+    //     // geometry_gpu.draw_circle(1000, 350, 51, 50, 200, 100, false);
+    //     // geometry_gpu.draw_circle(1000, 350, 50, 200, 100, 0, true);
+    //     geometry_gpu.draw_triangle(800, 200, 900, 300, 840, 500, 0, 100, 200, true);
+    //     geometry_gpu.draw_triangle(800, 200, 900, 300, 840, 500, 100, 200, 0, false);
+    //     geometry_gpu.draw_line(500, 500, 500, 600, 60, 120, 180);
+    // }
 
-    if let Some(geometry_gpu) = unsafe { (*GPU_DEVICE.unwrap()).as_geometry_mut() } {
-        // geometry_gpu.draw_circle(1000, 350, 51, 50, 200, 100, false);
-        // geometry_gpu.draw_circle(1000, 350, 50, 200, 100, 0, true);
-        geometry_gpu.draw_triangle(800, 200, 900, 300, 840, 500, 0, 100, 200, true);
-        geometry_gpu.draw_triangle(800, 200, 900, 300, 840, 500, 100, 200, 0, false);
-        geometry_gpu.draw_line(500, 500, 500, 600, 60, 120, 180);
+    if let Some(text_gpu) = unsafe { (*GPU_DEVICE.unwrap()).as_text_mut() } {
+        text_gpu.draw_textbox("Terry", 400, 400, 4, trinkets::templeos_color_palette::L_CYAN);
+        text_gpu.draw_textbox("Terry", 402, 402, 4, trinkets::templeos_color_palette::L_MAGENTA);
+        text_gpu.draw_textbox("Terry", 401, 401, 4, trinkets::templeos_color_palette::YELLOW);
     }
+
+    //trinkets::trigonakalanta();
 
     //unsafe { drivers::xhci::c::c_init_xhci() };
     
@@ -107,27 +117,14 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
 
     if error_count == 0 { 
         serial_println!("[ ☦️SYSTEM  ]\x1b[0;32m All processes succeded.\x1b[0m");
-        unsafe { let timer = TIMER;  console_println!("[  SYSTEM  ] All processes succeded in {}s.", timer ; r: 0, g: 255, b: 0); }
+        unsafe { let timer = TIMER;  console_println!("[  SYSTEM  ] All processes succeded in {}ms.", timer ; r: 0, g: 255, b: 0); }
     } else {
         serial_println!("[ ☦️SYSTEM  ]\x1b[0;31m All processes done ({} failed).\x1b[0m", error_count);
-        unsafe { let timer = TIMER;  console_println!("[  SYSTEM  ] All processes done in {}s ({} failed).", timer, error_count ; r: 200, g: 0, b: 0); }
+        unsafe { let timer = TIMER;  console_println!("[  SYSTEM  ] All processes done in {}ms ({} failed).", timer, error_count ; r: 200, g: 0, b: 0); }
     }
 
     unsafe { 
-        let mut old_timer = TIMER;
-
-        loop {
-            let timer = TIMER; 
-            if timer != old_timer && TIMER % 2 == 0 {
-                console_print!("{} ", timer ; color: 0xff0000);
-                old_timer += 1;
-            } else if timer != old_timer && TIMER % 2 != 0 {
-                console_print!("{} ", timer ; color: 0x0000ff);
-                old_timer += 1;
-            } else {
-                asm!("nop");
-            }
-        }
+        loop {}
     }
 }
 

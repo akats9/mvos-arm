@@ -1,5 +1,4 @@
 * Expand MVulkan API and GPU support
-* trigona kalanta
 * Add processes and threads
 * Add xHCI support for USB keyboard input
 * Fix PCI pagefault

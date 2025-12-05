@@ -20,11 +20,10 @@ pub fn gic_init() {
     mmio_write32(GICD as u64, d);
 
     // Enable timer interrupt (id: 30)
-    let reg = 0x100 + (30/32)*4;
-    let bit = 30 % 32;
-    let mut r = mmio_read32(GICD as u64 + reg);
-    r |= 1 << bit;
-    mmio_write32(GICD as u64 + reg, r);
+    enable_interrupt(30);
+
+    // Enable uart interrupt (id: 33)
+    enable_interrupt(33);
 
     // Set priority mask
     mmio_write8(GICC as u64 + 0x4, 0xff);
@@ -42,8 +41,8 @@ pub fn enable_timer() {
     // Read CNTFRQ_EL0
     let cntfrq: usize;
     unsafe { asm!("mrs {}, cntfrq_el0", out(reg) cntfrq); }
-    // Calculate TVAL to interrupt every 1 second
-    let tval = cntfrq ;
+    // Calculate TVAL to interrupt every 1 ms
+    let tval = cntfrq /1000;
     unsafe { asm!("msr cntp_tval_el0, {}", in(reg) tval); }
 
     unsafe {
@@ -61,8 +60,16 @@ pub fn tick_timer() {
         asm!("mrs {}, cntfrq_el0", out(reg) cntfrq);
         let cval0: usize;
         asm!("mrs {}, cntp_cval_el0", out(reg) cval0);
-        let cval = cval0 + cntfrq;
+        let cval = cval0 + (cntfrq/1000);
         asm!("msr cntp_cval_el0, {}", in(reg) cval);
-        mmio_write32(GICC as u64 + 0x10, 30);
+        
     }
 }
+
+pub fn enable_interrupt(irq_num: u64) {
+    let reg = 0x100 + (irq_num/32)*4;
+    let bit = irq_num % 32;
+    let mut r = mmio_read32(GICD as u64 + reg);
+    r |= 1 << bit;
+    mmio_write32(GICD as u64 + reg, r);
+} 

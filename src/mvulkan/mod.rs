@@ -30,6 +30,18 @@ pub trait MVulkanGPUDriver {
         None
     }
 
+    /// Return a reference to self if the device driver supports text features 
+    /// (must implement this method in driver, default is `None`)
+    fn as_text(&self) -> Option<&dyn MVulkanText> {
+        None
+    }
+
+    /// Return a mutable reference to self if the device driver supports text features 
+    /// (must implement this method in driver, default is `None`)
+    fn as_text_mut(&mut self) -> Option<&mut dyn MVulkanText> {
+        None
+    }
+
     /// Setup function to enable the GPU. 
     /// 
     /// This function returns Ok(()) if the operation succeeds
@@ -69,4 +81,21 @@ pub trait MVulkanGeometry : MVulkanGPUDriver {
     fn draw_line(&mut self, x0: u32, y0: u32, x1: u32, y1: u32, r: u8, g: u8, b: u8);
 }
 
+/// This trait includes methods to draw text-related items
+/// such as textboxes of various sizes at arbitrary positions
+/// (unlike the 0,0 console). This trait is optional.
+/// 
+/// To opt in, the driver must implement the `as_text` and `as_text_mut`
+/// methods of the `MVulkanGPUDriver` trait and return `Some(self)`. 
+pub trait MVulkanText : MVulkanGPUDriver {
+    /// Draw a textbox at an arbitrary position 
+    /// 
+    /// Point (x,y) is the top-leftmost pixel of the textbox.
+    /// 
+    /// This function uses hex color (#00rrggbb) for simplicity
+    /// (see draw_textbox_advanced).
+    fn draw_textbox(&mut self, message: &str, x: u32, y: u32, scale: u8, color: u32);
+}
+
 pub mod console;
+pub mod color;

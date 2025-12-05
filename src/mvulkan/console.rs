@@ -1,4 +1,4 @@
-use crate::{GPU_DEVICE, SCALE, SCREENHEIGHT};
+use crate::{GPU_DEVICE, SCALE, SCREENHEIGHT, SCREENWIDTH, console_print, trinkets::templeos_color_palette::WHITE};
 
 pub static mut CURSOR: (u32, u32) = (4,4);
 
@@ -15,6 +15,15 @@ pub fn newline() {
             CURSOR.0 = 4;
             CURSOR.1 = 4;
         }
+    }
+}
+
+/// Delete 1 character. Resets to black.
+pub fn backspace() {
+    unsafe {
+        CURSOR.1 -= (SCALE*8 + 1) as u32;
+        console_print!("█" ; color: 0 );
+        CURSOR.1 -= (SCALE*8 + 1) as u32;
     }
 }
 
