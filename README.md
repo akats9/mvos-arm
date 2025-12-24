@@ -7,6 +7,7 @@ Arm operating system written in Rust (and C)
 * RamFB GPU device support
 * MVulkan GPU-agnostic graphics API (WIP)
 * Visual console with color printing and support for UTF8 characters
+* Support for input through the UART (echo-only, backspace and newlines supported)
 
 ## Tools 
 Nightly tools used, these versions work (work used very loosely):

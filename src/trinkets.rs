@@ -18,6 +18,8 @@ pub mod templeos_color_palette {
     //! u32 hex RGB888 (#RRGGBB) color palette of TempleOS (CGA 16-color palette)
     //! L is light, D is dark
 
+    use crate::mvulkan::color::MVulkanColorScheme;
+
     pub const BLACK:     u32 = 0x00_00_00;
     pub const BLUE:      u32 = 0x00_00_AA;
     pub const GREEN:     u32 = 0x00_AA_00;
@@ -34,4 +36,39 @@ pub mod templeos_color_palette {
     pub const L_MAGENTA: u32 = 0xFF_55_FF;
     pub const YELLOW:    u32 = 0xFF_FF_55;
     pub const WHITE:     u32 = 0xFF_FF_FF;
+
+    pub struct TempleOSColorScheme; 
+    impl MVulkanColorScheme for TempleOSColorScheme {
+        fn debug(&self) -> u32 {
+            YELLOW
+        }
+
+        fn error(&self) -> u32 {
+            L_RED
+        }
+
+        fn fail(&self) -> u32 {
+            RED
+        }
+
+        fn info(&self) -> u32 {
+            CYAN
+        }
+
+        fn panic_red(&self) -> u32 {
+            RED
+        }
+
+        fn success(&self) -> u32 {
+            L_CYAN
+        }
+
+        fn warning(&self) -> u32 {
+            BROWN
+        }
+
+        fn white(&self) -> u32 {
+            WHITE
+        }
+    }
 }

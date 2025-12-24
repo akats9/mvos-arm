@@ -1,6 +1,6 @@
 use core::{ffi::{c_char, CStr}, fmt::Write};
 
-use crate::{GPU_DEVICE, SCALE, SCREENHEIGHT, SCREENWIDTH, console_print, console_println, dbg, memory::mmio::mmio_write32, mvulkan::{color::GENERIC_WHITE, console::{self, newline}}, trinkets::templeos_color_palette::WHITE};
+use crate::{GPU_DEVICE, SCALE, SCREENHEIGHT, SCREENWIDTH, THEME, console_print, console_println, dbg, memory::mmio::mmio_write32, mvulkan::{color::GENERIC_WHITE, console::{self, newline}}, trinkets::templeos_color_palette::WHITE};
 
 // UART base address for QEMU virt machine
 const UART_BASE: *mut u8 = 0x09000000 as *mut u8;
@@ -32,6 +32,7 @@ pub fn uart_irq_handler() {
     let mut icr: *mut u32 = (UART_BASE as isize+UART_ICR) as *mut u32;
 
     unsafe {
+        let theme = THEME;
         while ((*flags)&(1<<4)) == 0 {
             let c: char = ((*data) & 0xff) as u8 as char;
             // store in buffer
@@ -41,7 +42,7 @@ pub fn uart_irq_handler() {
             dbg!("UART: got {:?}", c.as_ascii());
             if c == '\r' { console::newline();}
             else if c == '\x7f' { console::backspace(); }
-            else { console_print!("{}", c ; color: GENERIC_WHITE); }
+            else { console_print!("{}", c ; color: theme.white()); }
         }
         mmio_write32(icr as u64, UART_RXIM as u32 | UART_RTIM as u32);
     }
