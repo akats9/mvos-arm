@@ -91,6 +91,8 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
     console_println!("[  SYSTEM  ] Activated MMU";color: theme.success());
     console_println!("[  SYSTEM  ] Activated GIC";color: theme.success());
     console_println!("[  SYSTEM  ] Activated RamFB device"; color: theme.success());
+    console_println!("[{:^10}] TEST", "SYSTEM"; color: theme.debug());
+    serial_println_prefixed!("SYS" => "prefix test");
 
     if let Some(geometry_gpu) = unsafe { (*GPU_DEVICE.unwrap()).as_geometry_mut() } {
         // geometry_gpu.draw_circle(1000, 350, 51, 50, 200, 100, false);

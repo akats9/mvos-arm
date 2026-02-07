@@ -2,7 +2,7 @@
 # Handles Rust, C, Assembly compilation and linking
 
 # Configuration
-TARGET := aarch64-unknown-none
+TARGET := aarch64-unknown-none-softfloat
 KERNEL_NAME := kernel64
 RUST_CRATE := mvos_arm
 

@@ -10,3 +10,8 @@ pub fn sleep(ms: usize) {
         }
     }
 }
+
+#[unsafe(no_mangle)]
+pub extern "C" fn c_sleep(ms: usize) {
+    sleep(ms);
+}

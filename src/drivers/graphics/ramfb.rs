@@ -2,7 +2,7 @@ use core::{ffi::c_char, ptr::null_mut};
 use alloc::vec::Vec;
 use spin::mutex;
 
-use crate::{BPP, SCREENHEIGHT, SCREENWIDTH, bootscreen::bootscreen_visual, dbg, memory::allocator::alloc_ffi::kmalloc_aligned, mvulkan::{MVulkanGPUDriver, MVulkanGeometry, MVulkanText}, serial_println, thread};
+use crate::{BPP, SCREENHEIGHT, SCREENWIDTH, bootscreen::bootscreen_visual, dbg, memory::allocator::alloc_ffi::kmalloc_aligned, mvulkan::{MVulkanGPUDriver, MVulkanGeometry, MVulkanText}, serial_println, serial_println_prefixed, thread};
 use crate::{min, max};
 
 pub mod c {
@@ -41,7 +41,7 @@ impl RamFBDriver {
 
 impl MVulkanGPUDriver for RamFBDriver {
     fn setup(&mut self) -> Result<(), &'static str> {
-        serial_println!("[ ☦️SYSTEM  ] Allocating Ramfb framebuffer...");
+        serial_println_prefixed!("Allocating Ramfb framebuffer...");
         let fb_addr = kmalloc_aligned((BPP*SCREENWIDTH*SCREENHEIGHT) as usize, 4096);
         self.fb_addr = fb_addr;
         unsafe { 

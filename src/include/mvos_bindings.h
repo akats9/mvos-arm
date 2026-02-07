@@ -119,6 +119,8 @@ void c_serial_println(const char *message);
 
 extern int32_t c_setup_ramfb(char *fb_addr, uint32_t width, uint32_t height);
 
+void c_sleep(size_t ms);
+
 extern void display_bootscreen(char *fb_addr);
 
 uint64_t find_pci_device(uint32_t vendor_id, uint32_t device_id);
@@ -150,6 +152,11 @@ extern bool pci_enable_device_c(uint64_t base);
 extern bool pci_enable_device_c(uint64_t base);
 
 uint64_t pci_get_bar(uint64_t base, uint8_t offset, uint8_t index);
+
+uint64_t pci_setup_bar(uint64_t pci_addr,
+                       uint32_t bar_index,
+                       uint64_t *mmio_start,
+                       uint64_t *mmio_size);
 
 extern void ramfb_clear(uint8_t color, char *fb_addr);
 

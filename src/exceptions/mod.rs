@@ -1,6 +1,6 @@
 use core::{arch::asm, panic};
 
-use crate::{dbg, drivers::uart::uart_irq_handler, exceptions::irq::{GICC, tick_timer}, memory::mmio::{mmio_read32, mmio_write32}, serial_println};
+use crate::{dbg, drivers::uart::uart_irq_handler, exceptions::irq::{GICC, tick_timer}, memory::mmio::{mmio_read32, mmio_write32}, serial_println, serial_println_prefixed};
 
 pub unsafe fn set_exception_vectors() {
     unsafe extern "C" { static exception_vectors: [u8; 0]; }
@@ -17,6 +17,8 @@ pub unsafe fn set_exception_vectors() {
         in(reg) vector_addr,
         options(nostack, preserves_flags)
     );
+
+    serial_println_prefixed!("Exception Vectors set." ; color: 20);
 }
 
 #[derive(Debug,Copy,Clone)]

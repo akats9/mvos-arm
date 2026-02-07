@@ -101,6 +101,92 @@ macro_rules! serial_println {
     };
 }
 
+/// Print formatted string to UART with newline and prefix
+#[macro_export]
+#[macro_use]
+macro_rules! serial_println_prefixed {
+    () => {
+        $crate::serial_print!("\n")
+    };
+    ($prefix:expr => $($arg:tt)*) => {
+        {
+            use core::fmt::Write;
+            use alloc::format;
+            let mut writer = $crate::UartWriter;
+            let prefixed = format!("[{:^11}] ", $prefix);
+            write!(writer, "{}", prefixed).ok();
+            writeln!(writer, $($arg)*).ok();
+        }
+    };
+    ($fmt:expr, $($arg:expr),*) => {
+        {
+            let formatted = ::alloc::format!($fmt, $($arg),*);
+            use core::fmt::Write;
+            use alloc::format;
+            let mut writer = $crate::UartWriter;
+            let prefixed = format!("[{:^11}] ", module_path!().split("::").last().unwrap_or("unknown").to_uppercase());
+            write!(writer, "{}", prefixed).ok();
+            writeln!(writer, "{formatted}").ok();
+        }
+    };
+    ($fmt:expr) => {
+        {
+            let formatted = ::alloc::format!($fmt);
+            use core::fmt::Write;
+            use alloc::format;
+            let mut writer = $crate::UartWriter;
+            let prefixed = format!("[{:^11}] ", module_path!().split("::").last().unwrap_or("unknown").to_uppercase());
+            write!(writer, "{}", prefixed).ok();
+            writeln!(writer, "{formatted}").ok();
+        }
+    };
+    ($fmt:expr, $($arg:expr),* ; color: $color:expr) => {
+        {
+            let formatted = ::alloc::format!($fmt, $($arg),*);
+            let color_pre = match $color {
+                "red" => {"\x1b[0;31m"},
+                "green" => {"\x1b[0;32m"},
+                "yellow" => {"\x1b[0;33m"},
+                "rb" => {"\x1b[1;31m"},
+                "gb" => {"\x1b[1;32m"},
+                "yb" => {"\x1b[1;33m"},
+            };
+            let color_post = "\x1b[0m"
+            use core::fmt::Write;
+            use alloc::format;
+            let mut writer = $crate::UartWriter;
+            let prefixed = format!("[{:^11}] ", module_path!().split("::").last().unwrap_or("unknown").to_uppercase());
+            write!(writer, "{}", prefixed).ok();
+            write!(writer, color_pre).ok();
+            write!(writer, formatted).ok();
+            writeln!(writer, color_post);
+        }
+    };
+    ($fmt:expr ; color: $color:literal) => {
+        {
+            let formatted = ::alloc::format!($fmt, );
+            let color_pre = match $color {
+                1 => {"\x1b[0;31m"},
+                2 => {"\x1b[0;32m"},
+                3 => {"\x1b[0;33m"},
+                10 => {"\x1b[1;31m"},
+                20 => {"\x1b[1;32m"},
+                30 => {"\x1b[1;33m"},
+                _ => {""},
+            };
+            let color_post = "\x1b[0m";
+            use core::fmt::Write;
+            use alloc::format;
+            let mut writer = $crate::UartWriter;
+            let prefixed = format!("[{:^11}] ", module_path!().split("::").last().unwrap_or("unknown").to_uppercase());
+            write!(writer, "{}", prefixed).ok();
+            write!(writer, "{color_pre}").ok();
+            write!(writer, "{formatted}").ok();
+            writeln!(writer, "{color_post}");
+        }
+    };
+}
+
 /// Print formatted debug string to UART with colored output and DEBUG prefix
 #[macro_export]
 #[macro_use]

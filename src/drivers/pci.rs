@@ -1,6 +1,6 @@
 use core::arch::asm;
-
-use crate::{memory::mmio::mmio_read, serial_print, serial_println};
+use alloc::string;
+use crate::{memory::mmio::{mmio_read, mmio_read32, mmio_write32}, serial_print, serial_println, serial_println_prefixed};
 
 const PCI_ECAM_BASE: u64 = 0x4010000000;
 const PCI_BUS_MAX: u64 = 256;
@@ -110,4 +110,25 @@ pub fn pci_enable_device(base: u64) {
     } else {
         serial_println!("[    PCI    ] \x1B[0;31m[Error]: Failed to enable PCI device (MSE/BME not set).\x1B[0m");
     }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pci_setup_bar(pci_addr: u64, bar_index: u32, mmio_start: *mut u64, mmio_size: *mut u64) -> u64 {
+    let mut bar_addr = pci_get_bar(pci_addr, 0x10, bar_index as u8); 
+    let original = mmio_read32(bar_addr);
+    mmio_write32(bar_addr, 0xffffffff);
+    let bar_low= mmio_read32(bar_addr);
+    serial_println!("[{:^10}] First bar size: {:#x}", "PCI", bar_low);
+
+    let mut size: u64;
+    if (original & 0x6) == 0x4 {
+        let bar_addr_hi = pci_get_bar(pci_addr, 0x10, bar_index as u8+1);
+        let original_hi = mmio_read32(bar_addr_hi);
+        serial_println_prefixed!("Original second bar {:#x}", original_hi);
+
+        mmio_write32(bar_addr_hi, 0xffffffff);
+        let bar_high = mmio_read32(bar_addr_hi);
+        serial_println_prefixed!("Second bar size: {:#x}", bar_high);
+    }
+    0
 }
