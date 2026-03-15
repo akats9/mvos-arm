@@ -1,6 +1,6 @@
 use core::{ffi::{c_char, CStr}, fmt::Write};
 
-use crate::{GPU_DEVICE, SCALE, SCREENHEIGHT, SCREENWIDTH, THEME, console_print, console_println, dbg, memory::mmio::mmio_write32, mvulkan::{color::GENERIC_WHITE, console::{self, newline}}, trinkets::templeos_color_palette::WHITE};
+use crate::{GPU_DEVICE, SCALE, SCREENHEIGHT, SCREENWIDTH, TEXT_DEFAULT, THEME, console_print, console_println, dbg, memory::mmio::mmio_write32, mvulkan::{color::GENERIC_WHITE, console::{self, newline}}, trinkets::templeos_color_palette::WHITE};
 
 // UART base address for QEMU virt machine
 const UART_BASE: *mut u8 = 0x09000000 as *mut u8;
@@ -18,9 +18,22 @@ const UART_RTIM: u8 = 1 << 6;
 
 // Input buffer
 const BUF_SIZE: usize = 256;
-static mut RX_BUFFER: [char; BUF_SIZE] = [0 as char; BUF_SIZE];
+pub static mut RX_BUFFER: [char; BUF_SIZE] = [0 as char; BUF_SIZE];
 static mut RX_HEAD: usize = 0; // where irq writes
 static mut RX_TAIL: usize = 0; // read
+
+static mut ECHO: bool = true;
+pub fn echo_enable() {
+    unsafe {
+        ECHO = true;
+    }
+}
+
+pub fn echo_disable() {
+    unsafe {
+        ECHO = false;
+    }
+}
 
 pub unsafe fn uart_enable_rxim() {
     (*((UART_BASE as isize+UART_IMSC) as *mut usize)) |= UART_RXIM as usize | UART_RTIM as usize;
@@ -35,16 +48,28 @@ pub fn uart_irq_handler() {
         let theme = THEME;
         while ((*flags)&(1<<4)) == 0 {
             let c: char = ((*data) & 0xff) as u8 as char;
+            if c == '\0' {continue;}
             // store in buffer
             RX_BUFFER[RX_HEAD] = c;
             RX_HEAD = (RX_HEAD + 1) % BUF_SIZE;
             // print on screen
-            dbg!("UART: got {:?}", c.as_ascii());
-            if c == '\r' { console::newline();}
-            else if c == '\x7f' { console::backspace(); }
-            else { console_print!("{}", c ; color: theme.white()); }
+            if ECHO {
+                dbg!("UART: got {:?}", c.as_ascii());
+                if c == '\r' { console::newline();}
+                else if c == '\x7f' { console::backspace(); }
+                else { console_print!("{}", c ; color: TEXT_DEFAULT); }
+            }
         }
         mmio_write32(icr as u64, UART_RXIM as u32 | UART_RTIM as u32);
+    }
+}
+
+/// Get the latest keypress that was sent to the UART
+pub fn get_key_latest() -> char { 
+    unsafe {
+        let c: char = RX_BUFFER[RX_TAIL];
+        RX_TAIL = (RX_TAIL + 1) % BUF_SIZE;
+        c
     }
 }
 

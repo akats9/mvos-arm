@@ -1,6 +1,7 @@
 use core::arch::asm;
 use alloc::string;
-use crate::{memory::mmio::{mmio_read, mmio_read32, mmio_write32}, serial_print, serial_println, serial_println_prefixed};
+use crate::{memory::{allocator::alloc_ffi::kmalloc, mmio::{mmio_read, mmio_read32, mmio_write32}}, serial_print, serial_println, serial_println_prefixed};
+use crate::memory::allocator::alloc_ffi;
 
 const PCI_ECAM_BASE: u64 = 0x4010000000;
 const PCI_BUS_MAX: u64 = 256;
@@ -129,6 +130,39 @@ pub unsafe extern "C" fn pci_setup_bar(pci_addr: u64, bar_index: u32, mmio_start
         mmio_write32(bar_addr_hi, 0xffffffff);
         let bar_high = mmio_read32(bar_addr_hi);
         serial_println_prefixed!("Second bar size: {:#x}", bar_high);
+
+        let combined: u64 = (bar_high as u64 )<< 32 | bar_low as u64 & !0xf;
+        size = !combined + 1;
+
+        let config_base = kmalloc(size as usize) as u64;
+        let mut mmio_start = config_base as *mut u64;
+        let mmio_size = &size;
+
+        mmio_write32(bar_addr, (config_base & 0xffffffff) as u32);
+        mmio_write32(bar_addr_hi, (config_base >> 32) as u32);
+
+        let new_hi: u64 = mmio_read32(bar_addr_hi) as u64;
+        let new_lo = mmio_read32(bar_addr);
+
+        serial_println_prefixed!("Two registers {:#x} > {:#x}", new_hi, new_lo);
+        let full: u64 = ((new_hi << 32) | (new_lo as u64 & !0xf)) as u64;
+        if full as u64 != config_base {
+            *mmio_start = full as u64;
+        }
+
+    } else {
+        let mut size32 = bar_low &!0xf;
+        size32 = !size32 + 1;
+
+        serial_println_prefixed!("Calculated bar size {:#x}", size32);
+
+        let config_base = kmalloc(size32 as usize) as u64;
+        let mmio_start = config_base as *mut u64;
+        let mmio_size = &size32;
+
+        mmio_write32(bar_addr, (config_base & 0xffffffff) as u32);
     }
-    0
+
+    mmio_write32(pci_addr + 0x04, (mmio_read32(pci_addr + 0x04) | 0x2));
+    *mmio_start
 }

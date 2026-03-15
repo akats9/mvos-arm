@@ -12,7 +12,7 @@ extern crate alloc;
 use drivers::uart::UartWriter;
 use alloc::{boxed::Box, vec::Vec};
 
-use crate::{bootscreen::print_bootscreen, drivers::{graphics::{self, virtio::VirtioDriver}, uart::uart_enable_rxim}, exceptions::{irq::{enable_timer, gic_init}, set_exception_vectors}, memory::allocator::{alloc_ffi::kmalloc_aligned, init_heap}, mvulkan::{MVulkanGPUDriver, color::{DefaultColorScheme, MVulkanColorScheme}, console}, random::random_bible_line, trinkets::templeos_color_palette::TempleOSColorScheme};
+use crate::{bootscreen::print_bootscreen, drivers::{graphics::{self, virtio::VirtioDriver}, uart::{self, uart_enable_rxim}}, exceptions::{irq::{enable_timer, gic_init}, set_exception_vectors}, memory::allocator::{alloc_ffi::kmalloc_aligned, init_heap}, mvulkan::{MVulkanGPUDriver, color::{DefaultColorScheme, MVulkanColorScheme}, console}, random::random_bible_line, shell::start_shell, trinkets::templeos_color_palette::TempleOSColorScheme};
 
 // C functions
 unsafe extern "C" {
@@ -36,7 +36,9 @@ const BIBLE: &str = include_str!("../Bible.TXT");
 /// Global absolute system timer (seconds)
 static mut TIMER: usize = 0;
 
+// Theme
 static mut THEME: &dyn MVulkanColorScheme = &DefaultColorScheme;
+static mut TEXT_DEFAULT: u32 = 0xffffff;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
@@ -135,7 +137,11 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
     }
 
     unsafe { 
-        loop {}
+        loop {
+            if uart::get_key_latest() == 's' {
+                start_shell();
+            }
+        }
     }
 }
 
@@ -176,3 +182,4 @@ pub mod mvulkan;
 pub mod random;
 pub mod thread;
 pub mod trinkets;
+pub mod shell;

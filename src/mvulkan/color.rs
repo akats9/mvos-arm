@@ -9,6 +9,7 @@ pub const PANIC_RED: u32 = 0xff0000;
 pub const DBG_YELLOW: u32 = 0xdbc323;
 pub const WARNING_ORANGE: u32 = 0xf29f0f;
 pub const GENERIC_WHITE: u32 = 0xffffff;
+pub const GENERIC_YELLOW: u32 = 0xe6d819;
 
 /// Trait to abstract over different colorschemes
 /// so that they can be arbitrarily set and changed.
@@ -45,6 +46,7 @@ pub trait MVulkanColorScheme {
     /// White
     fn white(&self) -> u32 { GENERIC_WHITE }
 
+    fn yellow(&self) -> u32 { GENERIC_YELLOW }
 
 }
 

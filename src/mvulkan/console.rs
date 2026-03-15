@@ -27,6 +27,14 @@ pub fn backspace() {
     }
 }
 
+/// Return cursor to the origin.
+pub fn origin() {
+    unsafe {
+        CURSOR.0 = 4;
+        CURSOR.1 = 4;
+    }
+} 
+
 /// Print to the console with an appended newline.
 /// 
 /// Format string arguments are fully supported. The string 

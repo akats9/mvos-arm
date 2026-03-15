@@ -7,7 +7,7 @@ KERNEL_NAME := kernel64
 RUST_CRATE := mvos_arm
 
 # Parameters
-GPU ?= virtio-gpu-pci
+GPU ?= ramfb
 MEMORY ?= 1G
 
 DISASSEMBLY_OUT ?= disassembly.txt
