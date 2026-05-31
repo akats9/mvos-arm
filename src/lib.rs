@@ -183,3 +183,4 @@ pub mod random;
 pub mod thread;
 pub mod trinkets;
 pub mod shell;
+pub mod games;

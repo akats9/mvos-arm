@@ -1,6 +1,6 @@
 use alloc::string::String;
 
-use crate::{GPU_DEVICE, SCALE, SCREENHEIGHT, SCREENWIDTH, TEXT_DEFAULT, THEME, console_print, console_println, dbg, drivers::uart::{self, RX_BUFFER, get_key_latest}, mvulkan::console};
+use crate::{GPU_DEVICE, SCALE, SCREENHEIGHT, SCREENWIDTH, TEXT_DEFAULT, THEME, console_print, console_println, dbg, drivers::uart::{self, RX_BUFFER, get_key_latest}, games::breakout, mvulkan::console, shell_print};
 
 /// Prepare the shell environment
 pub fn start_shell() {
@@ -10,12 +10,13 @@ pub fn start_shell() {
         console::origin();
         TEXT_DEFAULT = theme.yellow();
         RX_BUFFER = ['\0'; 256];
-        console_print!("root@mvos % " ; color: theme.yellow());
+        shell_print!("" ; color: theme.yellow());
         run_shell();
     }
 }
 
 fn run_shell() {
+    let mut hostname = "mvos";
     unsafe {
         let theme = THEME;
         loop {
@@ -36,14 +37,17 @@ fn run_shell() {
                 match cmd {
                     "line" => {
                         //console::newline();
-                        console_print!("root@mvos % " ; color: theme.yellow());
+                        shell_print!("" ; color: theme.yellow());
                     },
                     "version" => {
                         let v = env!("CARGO_PKG_VERSION");
-                        console_println!("MVOS version {}", v; color: theme.yellow());
-                        console_print!("root@mvos % "; color: theme.yellow());
+                        console_println!("MVOS version {}", v; color: theme.white());
+                        shell_print!("" ; color: theme.yellow());
                     },
-                    _ => {console_print!("root@mvos % "; color: theme.yellow());}
+                    "breakout" => {
+                        breakout::breakout_main();
+                    },
+                    _ => {shell_print!(""; color: theme.yellow());}
                 }
                 RX_BUFFER = ['\0'; 256];
             }

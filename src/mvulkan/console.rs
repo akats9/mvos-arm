@@ -1,3 +1,5 @@
+use core::fmt::Write;
+
 use crate::{GPU_DEVICE, SCALE, SCREENHEIGHT, SCREENWIDTH, console_print, trinkets::templeos_color_palette::WHITE};
 
 pub static mut CURSOR: (u32, u32) = (4,4);
@@ -222,5 +224,25 @@ macro_rules! console_print {
                 }
             }
         }
+    };
+}
+
+#[macro_export]
+#[macro_use]
+macro_rules! shell_print {
+    // With semicolon before color
+    ($fmt:literal $(, $arg:expr)* $(,)? ; color: $color:expr $(,)? ) => {
+        console_print!("root@mvos % " ; color: $color);
+        console_print!($fmt $(, $arg)*, ; color: $color);
+    };
+}
+
+#[macro_export]
+#[macro_use]
+macro_rules! shell_println {
+    // With semicolon before color
+    ($fmt:literal $(, $arg:expr)* $(,)? ; color: $color:expr $(,)? ) => {
+        console_print!("root@mvos % " ; color: $color);
+        console_println!($fmt $(, $arg)*, ; color: $color);
     };
 }

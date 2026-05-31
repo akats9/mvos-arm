@@ -22,6 +22,9 @@ pub static mut RX_BUFFER: [char; BUF_SIZE] = [0 as char; BUF_SIZE];
 static mut RX_HEAD: usize = 0; // where irq writes
 static mut RX_TAIL: usize = 0; // read
 
+// Gaming buffer
+pub static mut GAMING_BUFFER: char = 0 as char;
+
 static mut ECHO: bool = true;
 pub fn echo_enable() {
     unsafe {
@@ -52,6 +55,7 @@ pub fn uart_irq_handler() {
             // store in buffer
             RX_BUFFER[RX_HEAD] = c;
             RX_HEAD = (RX_HEAD + 1) % BUF_SIZE;
+            GAMING_BUFFER = c;
             // print on screen
             if ECHO {
                 dbg!("UART: got {:?}", c.as_ascii());
@@ -69,6 +73,14 @@ pub fn get_key_latest() -> char {
     unsafe {
         let c: char = RX_BUFFER[RX_TAIL];
         RX_TAIL = (RX_TAIL + 1) % BUF_SIZE;
+        c
+    }
+}
+
+pub fn get_key_latest_gaming() -> char {
+    unsafe {
+        let c: char = GAMING_BUFFER;
+        GAMING_BUFFER = 0 as char;
         c
     }
 }
