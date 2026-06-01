@@ -1,6 +1,6 @@
 use core::error::Error;
 
-use crate::{GPU_DEVICE, SCREENHEIGHT, SCREENWIDTH, THEME, dbg, drivers::uart::{self, echo_disable}, shell::start_shell, thread}; 
+use crate::{GPU_DEVICE, SCREENHEIGHT, SCREENWIDTH, THEME, dbg, drivers::uart::{self, echo_disable, echo_enable}, shell::start_shell, thread}; 
 
 trait GameObject {
     fn draw(&self);
@@ -157,15 +157,15 @@ pub unsafe fn breakout_main() {
 
         // Check for keystroke and update paddle position
         let keystroke = uart::get_key_latest_gaming();
-        if keystroke == 'd' {
+        if keystroke == 'd' && paddle.position.0 < SCREENWIDTH - 90 {
             paddle.clear();
-            paddle.position.0 = (paddle.position.0 + 15).clamp(0, SCREENWIDTH);
+            paddle.position.0 = (paddle.position.0 + 15).clamp(0, SCREENWIDTH - 150);
             paddle.velocity = 1;
             paddle.draw();
         }
-        if keystroke == 'a' {
+        if keystroke == 'a' && paddle.position.0 > 15 {
             paddle.clear();
-            paddle.position.0 = (paddle.position.0 - 15).clamp(0, SCREENWIDTH);
+            paddle.position.0 = (paddle.position.0 - 15).clamp(0, SCREENWIDTH - 90);
             paddle.velocity = -1;
             paddle.draw();
         }
