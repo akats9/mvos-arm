@@ -1,6 +1,6 @@
 use core::error::Error;
 
-use crate::{GPU_DEVICE, SCREENHEIGHT, SCREENWIDTH, THEME, dbg, drivers::uart::{self, echo_disable}, thread}; 
+use crate::{GPU_DEVICE, SCREENHEIGHT, SCREENWIDTH, THEME, dbg, drivers::uart::{self, echo_disable}, shell::start_shell, thread}; 
 
 trait GameObject {
     fn draw(&self);
@@ -86,6 +86,15 @@ impl GameObject for Ball {
     }
 }
 
+fn game_over() {
+    unsafe {
+        (*GPU_DEVICE.unwrap()).clear(0);
+        (*GPU_DEVICE.unwrap()).as_text_mut().unwrap().draw_textbox("YOU WIN", 540, 300, 4, 0xffffff);
+        thread::sleep(5000);
+        start_shell();
+    }
+}
+
 pub unsafe fn breakout_main() {
     // Init game scene
     (*GPU_DEVICE.unwrap()).clear(0);
@@ -120,11 +129,26 @@ pub unsafe fn breakout_main() {
     let mut lpbc: u32 = 0; // Last paddle-ball colission
     let mut lbyc: u32 = 0; // Last ball-ceiling or ball-floor collision
     let mut lbxc: u32 = 0; // Last ball-wall collision
+    let mut lbbc: u32 = 0; // Last ball-brick collision
+
+    // Score
+    let mut score = 0;
 
     // Game loop
     loop {
+        // Check for ball-wall collisions
+        if (ball.position.1 == 0 || ball.position.1 >= SCREENHEIGHT - 10) && now - lbyc > 10 {
+            dbg!("COLLISION");
+            ball.velocity.1 = -ball.velocity.1;
+            lbyc = now;
+        } else if (ball.position.0 <= 10 || ball.position.0 >= SCREENWIDTH - 10) && now - lbxc > 100 {
+            dbg!("WALL");
+            ball.velocity.0 = -ball.velocity.0;
+            lbxc = now;
+        }
+
         // Update ball position
-        if timestamp % 1 == 0 {
+        if timestamp % 10 == 0 {
             ball.clear();
             ball.position.0 = ((ball.position.0 as i32 + ball.velocity.0) as u32).clamp(0, SCREENWIDTH);
             ball.position.1 = ((ball.position.1 as i32 + ball.velocity.1) as u32).clamp(0, SCREENHEIGHT);
@@ -135,13 +159,13 @@ pub unsafe fn breakout_main() {
         let keystroke = uart::get_key_latest_gaming();
         if keystroke == 'd' {
             paddle.clear();
-            paddle.position.0 = (paddle.position.0 + 10).clamp(0, SCREENWIDTH);
+            paddle.position.0 = (paddle.position.0 + 15).clamp(0, SCREENWIDTH);
             paddle.velocity = 1;
             paddle.draw();
         }
         if keystroke == 'a' {
             paddle.clear();
-            paddle.position.0 = (paddle.position.0 - 10).clamp(0, SCREENWIDTH);
+            paddle.position.0 = (paddle.position.0 - 15).clamp(0, SCREENWIDTH);
             paddle.velocity = -1;
             paddle.draw();
         }
@@ -155,15 +179,22 @@ pub unsafe fn breakout_main() {
         }
         if timestamp % 1000 == 0 { paddle.velocity = 0 };
 
-        // Check for ball-wall collisions
-        if (ball.position.1 == 0 || ball.position.1 >= SCREENHEIGHT - 10) && now - lbyc > 10 {
-            dbg!("COLLISION");
-            ball.velocity.1 = -ball.velocity.1;
-            lbyc = now;
-        } else if (ball.position.0 == 0 || ball.position.0 >= SCREENWIDTH - 10) && now - lbxc > 100 {
-            dbg!("WALL");
-            ball.velocity.0 = -ball.velocity.0;
-            lbxc = now;
+        // Check for ball-brick collision
+        for x in 0..6 {
+            for y in 0..4 {
+                let pos = bricks[x][y].position;
+                if pos.0 <= ball.position.0 && ball.position.0 <= pos.0 + 190 
+                && pos.1 <= ball.position.1 && ball.position.1 <= pos.1 + 30
+                && now - lbbc > 20 
+                && bricks[x][y].broken == false {
+                    dbg!("BRICK");
+                    bricks[x][y].broken = true;
+                    bricks[x][y].clear();
+                    ball.velocity.1 = -ball.velocity.1;
+                    lbbc = now;
+                    score += 1;
+                }
+            }
         }
 
         // Reset ball
@@ -177,6 +208,11 @@ pub unsafe fn breakout_main() {
         if keystroke == 'p' {
             paddle.clear();
             paddle.position = (600,600);
+        }
+
+        // Check score
+        if score > 23 {
+            game_over();
         }
 
         paddle.draw();
