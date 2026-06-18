@@ -7,6 +7,8 @@ edition = "2024"
 linked_list_allocator = "0.10.5"
 lazy_static = { version = "1.5.0", features = ["spin_no_std"] }
 spin = "0.10.0"
+libm = "0.2.16"
+xmas-elf = "0.10.0"
 
 [profile.release]
 panic = "abort"

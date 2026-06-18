@@ -25,9 +25,9 @@ void serror_current_el_sp0_handler() {
 // Handlers for 64bit userspace exceptions
 // No userspace yet, panic
 
-void sync_lower_el_aarch64_handler() {
-    c_panic("SYNC_LOWER_EL_AARCH64_HANDLER INVOKED");
-}
+// void sync_lower_el_aarch64_handler() {
+//     c_panic("SYNC_LOWER_EL_AARCH64_HANDLER INVOKED");
+// }
 
 void fiq_lower_el_aarch64_handler() {
     c_panic("FIQ_LOWER_EL_AARCH64_HANDLER INVOKED");

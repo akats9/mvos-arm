@@ -47,6 +47,8 @@
 
 #define PANIC_RED 16711680
 
+#define PI 3.14159265358979323846264338327950288
+
 #define RED 11141120
 
 #define SCALE 1
@@ -110,6 +112,8 @@ void c_dbg_bin(uint64_t bin);
  */
 void c_dgb_hex(uint64_t hex);
 
+void c_draw_pixel(uint32_t x, uint32_t y, uint8_t r, uint8_t g, uint8_t b);
+
 extern int32_t c_init_xhci(void);
 
 void c_panic(const char *msg);
@@ -122,6 +126,8 @@ void c_serial_println(const char *message);
 extern int32_t c_setup_ramfb(char *fb_addr, uint32_t width, uint32_t height);
 
 void c_sleep(size_t ms);
+
+double cos(double x);
 
 extern void display_bootscreen(char *fb_addr);
 
@@ -160,6 +166,8 @@ uint64_t pci_setup_bar(uint64_t pci_addr,
                        uint64_t *mmio_start,
                        uint64_t *mmio_size);
 
+double pi(void);
+
 extern void ramfb_clear(uint8_t color, char *fb_addr);
 
 extern void ramfb_draw_letter(size_t utf8_offset,
@@ -188,7 +196,15 @@ extern void ramfb_set_pixel(uint32_t x, uint32_t y, uint8_t r, uint8_t g, uint8_
 
 void serror_current_el_spx_handler(void);
 
+double sin(double x);
+
+double sqrt(double x);
+
 void sync_current_el_spx_handler(struct InterruptFrame *frame);
+
+void sync_lower_el_aarch64_handler(void);
+
+double tan(double x);
 
 void verify_MMU(void);
 

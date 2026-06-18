@@ -11,7 +11,7 @@ extern crate alloc;
 
 use drivers::uart::UartWriter;
 use alloc::{boxed::Box, vec::Vec};
-
+use libm::{self, cos, sin, tan};
 use crate::{bootscreen::print_bootscreen, drivers::{graphics::{self, virtio::VirtioDriver}, uart::{self, uart_enable_rxim}}, exceptions::{irq::{enable_timer, gic_init}, set_exception_vectors}, memory::allocator::{alloc_ffi::kmalloc_aligned, init_heap}, mvulkan::{MVulkanGPUDriver, color::{DefaultColorScheme, MVulkanColorScheme}, console}, random::random_bible_line, shell::start_shell, trinkets::templeos_color_palette::TempleOSColorScheme};
 
 // C functions
@@ -27,6 +27,8 @@ pub const SCREENWIDTH: u32 = 1280;
 pub const SCREENHEIGHT: u32 = 720;
 pub const BPP: u32 = 4;
 pub const SCALE: u8 = 1;
+
+pub const PI: f64 = 3.14159265358979323846264338327950288_f64;
 
 // Hardware
 static mut GPU_DEVICE: Option<*mut dyn MVulkanGPUDriver> = None;
@@ -104,11 +106,13 @@ pub extern "C" fn kernel_main(_x0: u64, _dtb_ptr: *const u8) -> ! {
         geometry_gpu.draw_line(500, 500, 500, 600, 60, 120, 180);
     }
 
-    if let Some(text_gpu) = unsafe { (*GPU_DEVICE.unwrap()).as_text_mut() } {
-        text_gpu.draw_textbox("Terry", 400, 400, 4, trinkets::templeos_color_palette::L_CYAN);
-        text_gpu.draw_textbox("Terry", 402, 402, 4, trinkets::templeos_color_palette::L_MAGENTA);
-        text_gpu.draw_textbox("Terry", 401, 401, 4, trinkets::templeos_color_palette::YELLOW);
-    }
+    console_println!("PI: {}, sin: {}, cos: {}, tan: {}", PI, sin(PI), cos(PI), tan(PI) ; color: theme.white());
+
+    // if let Some(text_gpu) = unsafe { (*GPU_DEVICE.unwrap()).as_text_mut() } {
+    //     text_gpu.draw_textbox("Terry", 400, 400, 4, trinkets::templeos_color_palette::L_CYAN);
+    //     text_gpu.draw_textbox("Terry", 402, 402, 4, trinkets::templeos_color_palette::L_MAGENTA);
+    //     text_gpu.draw_textbox("Terry", 401, 401, 4, trinkets::templeos_color_palette::YELLOW);
+    // }
 
     //trinkets::trigonakalanta();
 
@@ -184,3 +188,4 @@ pub mod thread;
 pub mod trinkets;
 pub mod shell;
 pub mod games;
+pub mod programs;

@@ -1,6 +1,6 @@
 use core::{arch::asm, panic};
 
-use crate::{dbg, drivers::uart::uart_irq_handler, exceptions::irq::{GICC, tick_timer}, memory::mmio::{mmio_read32, mmio_write32}, serial_println, serial_println_prefixed};
+use crate::{dbg, drivers::uart::uart_irq_handler, exceptions::irq::{GICC, tick_timer}, memory::mmio::{mmio_read32, mmio_write32}, serial_println, serial_println_prefixed, shell::start_shell};
 
 pub unsafe fn set_exception_vectors() {
     unsafe extern "C" { static exception_vectors: [u8; 0]; }
@@ -332,6 +332,48 @@ pub unsafe extern "C" fn serror_current_el_spx_handler() {
 
     panic!("Fatal: System Error Occured.");
 
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn sync_lower_el_aarch64_handler() {
+    let esr: u64;
+    let elr: u64;
+    let spsr: u64;
+
+    // Read important registers
+    asm!(
+        "mrs {esr}, esr_el1",
+        "mrs {elr}, elr_el1",
+        "mrs {spsr}, spsr_el1",
+        esr = out(reg) esr,
+        elr = out(reg) elr,
+        spsr = out(reg) spsr,
+    );
+
+    // Check if this is a syscall (EC = 0x15)
+    let ec = (esr >> 26) & 0x3F;
+
+    if ec == 0x15 {
+        // This is a syscall (svc instruction)
+        let syscall_number: u64;
+        asm!("mov {}, x8", out(reg) syscall_number); // Convention: syscall number in x8
+
+        // TODO: Handle the syscall here
+        // For example:
+        // match syscall_number {
+        //     0 => { /* sys_write */ }
+        //     1 => { /* sys_exit */ }
+        //     _ => { /* unknown syscall */ }
+        // }
+
+        // For now, start shell
+        start_shell();
+    } else {
+        // Other synchronous exception (page fault, etc.)
+    }
+
+    // Return to EL0
+    asm!("eret", options(noreturn));
 }
 
 pub mod irq;
