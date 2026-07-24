@@ -1,6 +1,6 @@
 use core::{arch::asm, panic};
 
-use crate::{dbg, drivers::uart::uart_irq_handler, exceptions::irq::{GICC, tick_timer}, memory::mmio::{mmio_read32, mmio_write32}, serial_println, serial_println_prefixed, shell::start_shell};
+use crate::{dbg, drivers::uart::uart_irq_handler, exceptions::irq::{GICC, tick_timer}, memory::mmio::{mmio_read32, mmio_write32}, serial_println, serial_println_prefixed, shell::start_shell, syscalls::sys_draw_pixel};
 
 pub unsafe fn set_exception_vectors() {
     unsafe extern "C" { static exception_vectors: [u8; 0]; }
@@ -360,14 +360,25 @@ pub unsafe extern "C" fn sync_lower_el_aarch64_handler() {
 
         // TODO: Handle the syscall here
         // For example:
-        // match syscall_number {
-        //     0 => { /* sys_write */ }
-        //     1 => { /* sys_exit */ }
-        //     _ => { /* unknown syscall */ }
-        // }
-
-        // For now, start shell
-        start_shell();
+        match syscall_number {
+            10 => { 
+                let x: u32; let y: u32; let r: u8; let g: u8; let b: u8;
+                asm!(
+                    "mov {x}, x0",
+                    "mov {y}, x1",
+                    "mov {r}, x2",
+                    "mov {g}, x3",
+                    "mov {b}, x4",
+                    x = out(reg) x,
+                    y = out(reg) y,
+                    r = out(reg) r,
+                    g = out(reg) g,
+                    b = out(reg) b,
+                );
+                sys_draw_pixel(x, y, r, g, b); 
+            }
+            _ => { dbg!("Unknown syscall; starting shell"); start_shell(); }
+        }
     } else {
         // Other synchronous exception (page fault, etc.)
     }

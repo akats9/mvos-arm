@@ -41,6 +41,9 @@ pub trait MVulkanColorScheme {
     /// Color for printing warnings
     fn warning(&self) -> u32 { WARNING_ORANGE }
 
+    /// Background color
+    fn background(&self) -> u32 { 0x0 }
+
     // -- GENERIC COLORS -- 
 
     /// White
@@ -56,4 +59,24 @@ impl MVulkanColorScheme for DefaultColorScheme {}
 
 impl DefaultColorScheme {
     pub fn new() -> Self { Self {} }
+}
+
+/// Helper trait to overload u32 and (u8, u8, u8) color input
+pub trait IntoRGB {
+    fn into_rgb(self) -> (u8, u8, u8);
+}
+
+impl IntoRGB for u32 {
+    fn into_rgb(self) -> (u8, u8, u8) {
+        let r = ((self >> 16) & 0xFF) as u8;
+        let g = ((self >> 8)  & 0xFF) as u8;
+        let b = (self & 0xFF) as u8;
+        (r, g, b)
+    }
+}
+
+impl IntoRGB for (u8, u8, u8) {
+    fn into_rgb(self) -> (u8, u8, u8) {
+        self
+    }
 }

@@ -189,3 +189,4 @@ pub mod trinkets;
 pub mod shell;
 pub mod games;
 pub mod programs;
+pub mod syscalls;

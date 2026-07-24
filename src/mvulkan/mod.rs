@@ -99,3 +99,4 @@ pub trait MVulkanText : MVulkanGPUDriver {
 
 pub mod console;
 pub mod color;
+pub mod geometry;
