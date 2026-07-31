@@ -18,5 +18,6 @@ void mmu_alloc();
 void mmu_init();
 void mmu_unmap(uint64_t pa, uint64_t va);
 void mmu_map_4kb(uint64_t va, uint64_t pa, uint64_t attr_index, uint64_t level);
+void mmu_map_4kb_wroot(uint64_t* root, uint64_t va, uint64_t pa, uint64_t attr_index, uint64_t level);
 
 #endif

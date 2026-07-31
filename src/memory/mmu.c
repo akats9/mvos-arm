@@ -162,7 +162,65 @@ void mmu_map_4kb(uint64_t va, uint64_t pa, uint64_t attr_index, uint64_t level) 
         default: break;
     }
 
-    uint64_t attr = ((uint64_t)(level == 1) << UXN_BIT) | ((uint64_t)0 << PXN_BIT) | (1 << AF_BIT) | (0b01 << SH_BIT) | (permission << AP_BIT) | (attr_index < MAIR_BIT) | 0b11;
+    uint64_t attr = ((uint64_t)(level == 1) << UXN_BIT) | ((uint64_t)0 << PXN_BIT) | (1 << AF_BIT) | (0b01 << SH_BIT) | (permission << AP_BIT) | (attr_index << MAIR_BIT) | 0b11;
+    l3[l3_index] = (pa & ENTRY_MASK) | attr;
+}
+
+/** Level 0 = EL0, Level 1 = EL1, Level 2 = Shared */
+void mmu_map_4kb_wroot(uint64_t* root, uint64_t va, uint64_t pa, uint64_t attr_index, uint64_t level) {
+    uint64_t l0_index = (va >> 39) & 0x1ff;
+    uint64_t l1_index = (va >> 30) & 0x1ff;
+    uint64_t l2_index = (va >> 21) & 0x1ff;
+    uint64_t l3_index = (va >> 12) & 0x1ff;
+
+    // L0
+    if (!(root[l0_index] & 1)) {
+        uint64_t* l1 = (uint64_t*)kmalloc_aligned(PAGE_SIZE, PAGE_SIZE);
+        root[l0_index] = ((uint64_t)l1 & ENTRY_MASK) | PD_TABLE;
+    }
+
+    uint64_t* l1 = (uint64_t*)(root[l0_index] & ENTRY_MASK);
+
+    // L1
+    if (!(l1[l1_index] & 1)) {
+        uint64_t* l2 = (uint64_t*)kmalloc_aligned(PAGE_SIZE, PAGE_SIZE);
+        l1[l1_index] = ((uint64_t)l2 & ENTRY_MASK) | PD_TABLE;
+    }
+
+    uint64_t* l2 = (uint64_t*)(l1[l1_index] & ENTRY_MASK);
+    uint64_t l2_val = l2[l2_index];
+
+    // L2
+    if (!(l2_val & 1)) {
+        uint64_t* l3 = (uint64_t*)kmalloc_aligned(PAGE_SIZE, PAGE_SIZE);
+        l2[l2_index] = ((uint64_t)l3 & ENTRY_MASK) | PD_TABLE;
+    } else if ((l2_val & 0b11) == PD_BLOCK) {
+        return;
+    }
+
+    uint64_t* l3 = (uint64_t*)(l2[l2_index] & ENTRY_MASK);
+
+    // L3
+    if (l3[l3_index] & 1) {
+        return;
+    }
+
+    uint8_t permission = 0;
+    switch (level) {
+        case 0: permission = 0b01; break;   // EL0
+        case 1: permission = 0b00; break;   // EL1
+        case 2: permission = 0b10; break;   // Shared
+        default: break;
+    }
+
+    uint64_t attr = ((uint64_t)(level == 1) << UXN_BIT)
+                  | ((uint64_t)0 << PXN_BIT)
+                  | (1 << AF_BIT)
+                  | (0b01 << SH_BIT)
+                  | (permission << AP_BIT)
+                  | (attr_index << MAIR_BIT)   // note: was `<` before, almost certainly meant `<<`
+                  | 0b11;
+
     l3[l3_index] = (pa & ENTRY_MASK) | attr;
 }
 

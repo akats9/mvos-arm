@@ -59,6 +59,8 @@
 
 #define SUCCESS_GREEN 65280
 
+#define SYS_DRAW_PIXEL 10
+
 #define WARNING_ORANGE 15900431
 
 #define WHITE 16777215
@@ -135,6 +137,8 @@ uint64_t find_pci_device(uint32_t vendor_id, uint32_t device_id);
 
 void interrupt_handler(void);
 
+void irq_lower_el_aarch64_handler(void);
+
 void kernel_main(uint64_t _x0, const uint8_t *_dtb_ptr);
 
 void kfree(uint8_t *ptr, size_t size);
@@ -154,6 +158,12 @@ uint8_t mmio_read8(uint8_t addr);
 void mmio_write32(uint64_t reg, uint32_t data);
 
 extern void mmu_init(void);
+
+extern void mmu_map_4kb_wroot(uint64_t *root,
+                              uint64_t va,
+                              uint64_t pa,
+                              uint64_t attr_index,
+                              uint64_t level);
 
 extern bool pci_enable_device_c(uint64_t base);
 
@@ -202,7 +212,7 @@ double sqrt(double x);
 
 void sync_current_el_spx_handler(struct InterruptFrame *frame);
 
-void sync_lower_el_aarch64_handler(void);
+void sync_lower_el_aarch64_handler(struct InterruptFrame *frame);
 
 double tan(double x);
 

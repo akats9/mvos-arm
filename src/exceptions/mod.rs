@@ -1,6 +1,6 @@
 use core::{arch::asm, panic};
-
-use crate::{dbg, drivers::uart::uart_irq_handler, exceptions::irq::{GICC, tick_timer}, memory::mmio::{mmio_read32, mmio_write32}, serial_println, serial_println_prefixed, shell::start_shell, syscalls::sys_draw_pixel};
+use crate::{SCALE, SCREENHEIGHT, SCREENWIDTH, GPU_DEVICE};
+use crate::{console_println, dbg, drivers::uart::uart_irq_handler, exceptions::irq::{GICC, tick_timer}, memory::mmio::{mmio_read32, mmio_write32}, serial_println, serial_println_prefixed, shell::start_shell, syscalls::sys_draw_pixel};
 
 pub unsafe fn set_exception_vectors() {
     unsafe extern "C" { static exception_vectors: [u8; 0]; }
@@ -335,7 +335,8 @@ pub unsafe extern "C" fn serror_current_el_spx_handler() {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn sync_lower_el_aarch64_handler() {
+pub unsafe extern "C" fn sync_lower_el_aarch64_handler(frame: *mut InterruptFrame) {
+    dbg!("SYNC LOWER EL");
     let esr: u64;
     let elr: u64;
     let spsr: u64;
@@ -376,15 +377,59 @@ pub unsafe extern "C" fn sync_lower_el_aarch64_handler() {
                     b = out(reg) b,
                 );
                 sys_draw_pixel(x, y, r, g, b); 
+                dbg!("syscall");
             }
             _ => { dbg!("Unknown syscall; starting shell"); start_shell(); }
         }
     } else {
-        // Other synchronous exception (page fault, etc.)
+        let frame = *frame;
+        serial_println!("[ EXCEPTION ] Synchronous exception occured, ELR: 0x{:x}, ESR: 0x{:x}, FAR: 0x{:x}", frame.elr, frame.esr, frame.far);
+        serial_println!("[ EXCEPTION ] Attempting to parse exception...");
+        
+        let esr_info = EsrInfo::parse(frame.esr);
+        match esr_info.exception_class {
+            ExceptionClass::DataAbortLowerEL | ExceptionClass::DataAbortSameEL => {
+                let abort_info = DataAbortInfo::parse_data_abort_iss(esr_info.instruction_specific_syndrome);
+                let fault_addr = frame.far;
+                let fault_pc = frame.elr;
+
+                serial_println!("[ EXCEPTION ] Data abort at PC: {:#018x}, Address: {:#018x}", fault_pc, fault_addr);
+                serial_println!("[ EXCEPTION ] Fault type: {}", abort_info.get_fault_type());
+                serial_println!("[ EXCEPTION ] Access: {}", if abort_info.write_not_read {"Write"} else {"Read"});
+
+                handle_page_fault(fault_addr, fault_pc, abort_info.write_not_read);
+            },
+
+            ExceptionClass::InstructionAbortLowerEL | ExceptionClass::InstructionAbortSameEL => {
+                let fault_addr = frame.elr;
+                serial_println!("[ EXCEPTION ] Instruction aborted at PC: 0x{:#018x}", fault_addr);
+                handle_instruction_abort(fault_addr);
+            },
+
+            ExceptionClass::PcAlignment => {
+                serial_println!("[ EXCEPTION ] PC alignment exception at 0x{:#018x}", frame.elr);
+                panic!("UNALIGNED PC");
+            },
+
+            ExceptionClass::SpAlignment => {
+                serial_println!("[ EXCEPTION ] SP alignment exception at 0x{:018x}", frame.elr);
+                panic!("UNALIGNED SP");
+            }, 
+
+            _ => {
+                serial_println!("[ EXCEPTION ] Unhandled exception: {:?}", esr_info.exception_class);
+                panic!("UNHANDLED EXCEPTION");
+            }
+        }
     }
 
     // Return to EL0
     asm!("eret", options(noreturn));
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn irq_lower_el_aarch64_handler() {
+    tick_timer();
 }
 
 pub mod irq;

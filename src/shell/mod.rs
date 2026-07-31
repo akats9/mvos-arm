@@ -1,6 +1,6 @@
 use alloc::string::String;
 
-use crate::{GPU_DEVICE, SCALE, SCREENHEIGHT, SCREENWIDTH, TEXT_DEFAULT, THEME, console_print, console_println, dbg, drivers::uart::{self, RX_BUFFER, echo_enable, get_key_latest}, games::breakout, mvulkan::{color::DefaultColorScheme, console}, shell_print, trinkets::templeos_color_palette::TempleOSColorScheme};
+use crate::{GPU_DEVICE, SCALE, SCREENHEIGHT, SCREENWIDTH, TEXT_DEFAULT, THEME, console_print, console_println, dbg, drivers::uart::{self, RX_BUFFER, echo_enable, get_key_latest}, games::breakout, mvulkan::{color::DefaultColorScheme, console}, programs::{TEST_ELF, run_user_program}, shell_print, trinkets::templeos_color_palette::TempleOSColorScheme};
 
 /// Prepare the shell environment
 pub fn start_shell() {
@@ -55,6 +55,9 @@ fn run_shell() {
                     "theme-temple" => {
                         unsafe { THEME = &TempleOSColorScheme; }
                         shell_print!("" ; color: theme.yellow());
+                    },
+                    "test-elf" => {
+                        run_user_program(TEST_ELF);
                     },
                     _ => {shell_print!(""; color: theme.yellow());}
                 }

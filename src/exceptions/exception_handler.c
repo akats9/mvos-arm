@@ -33,9 +33,9 @@ void fiq_lower_el_aarch64_handler() {
     c_panic("FIQ_LOWER_EL_AARCH64_HANDLER INVOKED");
 }
 
-void irq_lower_el_aarch64_handler() {
-    c_panic("IRQ_LOWER_EL_AARCH64_HANDLER INVOKED");
-}
+// void irq_lower_el_aarch64_handler() {
+//     c_panic("IRQ_LOWER_EL_AARCH64_HANDLER INVOKED");
+// }
 
 void serror_lower_el_aarch64_handler() {
     c_panic("SERROR_LOWER_EL_AARCH64_HANDLER INVOKED");
